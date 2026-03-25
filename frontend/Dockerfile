@@ -1,4 +1,9 @@
-FROM ubuntu:latest
-LABEL authors="kajetanjanusz"
+FROM node:22.22.2-bookworm-slim
 
-ENTRYPOINT ["top", "-b"]
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm ci
+
+COPY . .
