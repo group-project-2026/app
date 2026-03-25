@@ -30,6 +30,9 @@ jobs:
       - name: Install poetry
         uses: abatilo/actions-poetry@v4
 
+      - name: Configure poetry virtualenv
+        run: poetry config virtualenvs.in-project true
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
