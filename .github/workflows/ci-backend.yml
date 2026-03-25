@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         working-directory: ./backend
         run: |
-          poetry install
+          poetry install --no-interaction --no-root
 
       - name: Run tests
         working-directory: ./backend
