@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+local_branch_name="$(git rev-parse --abbrev-ref HEAD)"
+valid_branch_regex='^(((fix|feat|refactor|infra|test|docs|ci|release)(\([a-zA-Z0-9-]+\))?/[a-zA-Z0-9-]+)|main|HEAD)$'
+
+if ! echo "$local_branch_name" | grep -Eq "$valid_branch_regex"; then
+  echo "Wrong branch name ($local_branch_name)."
+  echo "Branch names should match: $valid_branch_regex"
+  echo "Your commit has been rejected."
+  exit 1
+fi
+
+echo "Formatting staged files with Prettier"
+npx lint-staged
