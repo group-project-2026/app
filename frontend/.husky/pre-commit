@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
 local_branch_name="$(git rev-parse --abbrev-ref HEAD)"
 valid_branch_regex='^(((fix|feat|refactor|infra|test|docs|ci|release)(\([a-zA-Z0-9-]+\))?/[a-zA-Z0-9-]+)|main|HEAD)$'
 
