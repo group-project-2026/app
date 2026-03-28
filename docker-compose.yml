@@ -5,7 +5,7 @@ services:
     depends_on:
       database:
         condition: service_healthy
-    entrypoint: [ "./entrypoints/backend-1.sh" ]
+    entrypoint: [ "./entrypoints/backend.sh" ]
     build:
       context: backend
       dockerfile: Dockerfile
