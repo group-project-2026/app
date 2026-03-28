@@ -1,0 +1,1 @@
+echo "Checking formatting with Prettier" && npm run prettier
