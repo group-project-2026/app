@@ -5,16 +5,14 @@ services:
     depends_on:
       database:
         condition: service_healthy
-    entrypoint: [ "./entrypoints/backend-1.sh" ]
+    entrypoint: [ "./entrypoints/backend.sh" ]
     build:
       context: backend
       dockerfile: Dockerfile
-    volumes:
-      - ./backend:/app
     ports:
       - '8000:8000'
     env_file:
-      - .env
+      - .env.backend
     restart: always
 
   frontend:
@@ -25,12 +23,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    volumes:
-      - ./frontend:/app
     ports:
       - '3000:3000'
     env_file:
-      - .env
+      - .env.backend
     restart: always
 
   database:
