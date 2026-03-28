@@ -20,6 +20,10 @@ npm run dev
 
 - `npm run dev` - uruchamia Vite w trybie deweloperskim
 - `npm run build` - buduje aplikacje (`tsc -b && vite build`)
+- `npm run typecheck` - sprawdza typy TypeScript (`tsc -b --noEmit`)
+- `npm run test` - uruchamia testy Jest
+- `npm run test:watch` - uruchamia testy Jest w trybie watch
+- `npm run test:ci` - uruchamia testy pod CI (`jest --ci --runInBand`)
 - `npm run lint` - uruchamia ESLint
 - `npm run lint:fix` - naprawia problemy ESLint (tam gdzie mozliwe)
 - `npm run prettier` - sprawdza format (`prettier --check .`)
@@ -110,8 +114,14 @@ Efekt:
 ### `pre-push`
 
 - uruchamia: `npm run prettier`
+- uruchamia: `npm run typecheck`
+- uruchamia: `npm run test:ci`
 - sprawdza format calego repo frontend (`prettier --check .`)
+- sprawdza typy TypeScript (`tsc -b --noEmit`)
+- uruchamia testy w trybie CI (`jest --ci --runInBand`)
 - jesli sa bledy formatowania, push zostaje odrzucony
+- jesli sa bledy typow TypeScript, push zostaje odrzucony
+- jesli testy nie przejda, push zostaje odrzucony
 
 ## Rekomendowany workflow
 
@@ -124,4 +134,6 @@ Efekt:
 
 - branch odrzucony: sprawdz czy nazwa pasuje do formatu z sekcji branchy
 - commit odrzucony: sprawdz wynik `npx lint-staged` i `commitlint`
-- push odrzucony: uruchom `npm run prettier:fix`, a potem ponow `git push`
+- push odrzucony na formatowaniu: uruchom `npm run prettier:fix`, a potem ponow `git push`
+- push odrzucony na typach: uruchom `npm run typecheck`, popraw bledy TS i sproboj ponownie
+- push odrzucony na testach: uruchom `npm run test:ci`, popraw testy i sproboj ponownie

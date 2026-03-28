@@ -4,3 +4,5 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 cd "$SCRIPT_DIR/.." || exit 1
 
 echo "Checking formatting with Prettier" && npm run prettier
+echo "Checking TypeScript types" && npm run typecheck
+echo "Running CI test suite" && npm run test:ci
