@@ -25,15 +25,19 @@ export function Filters({ activeCategories, onToggle }: Props) {
             <Checkbox
               checked={checked}
               onCheckedChange={() => onToggle(cat)}
-              className="border-white/20 data-[state=checked]:bg-[var(--cat-color)] data-[state=checked]:border-[var(--cat-color)]"
+              className="border-white/20 data-[state=checked]:bg-(--cat-color) data-[state=checked]:border-(--cat-color)"
               style={
-                checked ? ({ "--cat-color": meta.color } as React.CSSProperties) : undefined
+                checked
+                  ? ({ "--cat-color": meta.color } as React.CSSProperties)
+                  : undefined
               }
             />
             <span
-              className={`text-xs transition-colors ${checked ? "text-[var(--cat-color)]" : "text-white/45"}`}
+              className={`text-xs transition-colors ${checked ? "text-(--cat-color)" : "text-white/45"}`}
               style={
-                checked ? ({ "--cat-color": meta.color } as React.CSSProperties) : undefined
+                checked
+                  ? ({ "--cat-color": meta.color } as React.CSSProperties)
+                  : undefined
               }
             >
               {meta.label}
