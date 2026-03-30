@@ -23,7 +23,7 @@ const queryClient = new QueryClient({
 
 function AppLayout() {
   return (
-    <div className="dark min-h-screen bg-[#030712] text-white">
+    <div className="min-h-screen text-white bg-slate-950 px-4">
       <NavigationHeader />
       <Outlet />
     </div>

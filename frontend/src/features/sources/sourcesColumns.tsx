@@ -25,7 +25,10 @@ export const sourcesColumns: ColumnDef<Source>[] = [
     header: "Class",
     accessorKey: "sourceClass",
     cell: ({ value }) => (
-      <Badge variant="outline">
+      <Badge
+        variant="outline"
+        className="border-slate-500/80 bg-slate-800/70 text-slate-100"
+      >
         {isSourceClass(value) ? SOURCE_CLASS_LABELS[value] : "Unknown"}
       </Badge>
     ),

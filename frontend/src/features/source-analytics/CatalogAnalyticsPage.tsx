@@ -256,13 +256,12 @@ export function CatalogAnalyticsPage() {
       <div className="container mx-auto py-8 space-y-6">
         <header className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">
-            Catalog Analytics
+            Analityka Katalogów
           </h1>
           <p className="text-muted-foreground max-w-3xl">
-            Podstrona analityczna oparta o shadcn charts dla katalogów Fermin,
-            HAWC, LHAASO, NED, TeVCat i MAGIC: emisja, istotność statystyczna,
-            porównania między katalogami, osobna sekcja detectability oraz
-            groupingi i agregacje pod analizę.
+            Analityka dla katalogów Fermin, HAWC, LHAASO, NED, TeVCat i MAGIC:
+            emisja, istotność statystyczna, porównania między katalogami, osobna
+            sekcja detectability oraz groupingi i agregacje pod analizę.
           </p>
         </header>
 
@@ -290,6 +289,56 @@ export function CatalogAnalyticsPage() {
                 );
               })}
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Groupingi i agregacje pod analizę</CardTitle>
+                <CardDescription>
+                  Aktualny grouping: {selectedGroupingLabel}. Tabela zbiorcza
+                  dla wybranego wymiaru analitycznego.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Grupa</TableHead>
+                      <TableHead>Próbki</TableHead>
+                      <TableHead>Avg emission</TableHead>
+                      <TableHead>Median emission</TableHead>
+                      <TableHead>Avg sigma</TableHead>
+                      <TableHead>Peak sigma</TableHead>
+                      <TableHead>Avg detectability</TableHead>
+                      <TableHead>High detectability %</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupingRows.map((row) => (
+                      <TableRow key={row.group}>
+                        <TableCell>{formatCatalogLabel(row.group)}</TableCell>
+                        <TableCell>{row.sampleCount}</TableCell>
+                        <TableCell>{formatFlux(row.avgEmissionFlux)}</TableCell>
+                        <TableCell>
+                          {formatFlux(row.medianEmissionFlux)}
+                        </TableCell>
+                        <TableCell>
+                          {formatFloat(row.avgSignificance, 2)}
+                        </TableCell>
+                        <TableCell>
+                          {formatFloat(row.peakSignificance, 2)}
+                        </TableCell>
+                        <TableCell>
+                          {formatFloat(row.avgDetectability, 1)}
+                        </TableCell>
+                        <TableCell>
+                          {formatFloat(row.highDetectabilityShare, 1)}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
             <div className="grid gap-3 md:grid-cols-4">
               <Card size="sm">
@@ -571,52 +620,6 @@ export function CatalogAnalyticsPage() {
                 </Badge>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Groupingi i agregacje pod analizę</CardTitle>
-            <CardDescription>
-              Aktualny grouping: {selectedGroupingLabel}. Tabela zbiorcza dla
-              wybranego wymiaru analitycznego.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Grupa</TableHead>
-                  <TableHead>Próbki</TableHead>
-                  <TableHead>Avg emission</TableHead>
-                  <TableHead>Median emission</TableHead>
-                  <TableHead>Avg sigma</TableHead>
-                  <TableHead>Peak sigma</TableHead>
-                  <TableHead>Avg detectability</TableHead>
-                  <TableHead>High detectability %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groupingRows.map((row) => (
-                  <TableRow key={row.group}>
-                    <TableCell>{formatCatalogLabel(row.group)}</TableCell>
-                    <TableCell>{row.sampleCount}</TableCell>
-                    <TableCell>{formatFlux(row.avgEmissionFlux)}</TableCell>
-                    <TableCell>{formatFlux(row.medianEmissionFlux)}</TableCell>
-                    <TableCell>{formatFloat(row.avgSignificance, 2)}</TableCell>
-                    <TableCell>
-                      {formatFloat(row.peakSignificance, 2)}
-                    </TableCell>
-                    <TableCell>
-                      {formatFloat(row.avgDetectability, 1)}
-                    </TableCell>
-                    <TableCell>
-                      {formatFloat(row.highDetectabilityShare, 1)}%
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
       </div>
