@@ -47,7 +47,7 @@ export function DataTable<T extends { id: string }>({
   };
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border border-slate-700/70 bg-slate-900/40">
       <Table>
         <TableHeader>
           <TableRow>
@@ -57,7 +57,7 @@ export function DataTable<T extends { id: string }>({
                 className={cn(
                   column.className,
                   column.sortable &&
-                    "cursor-pointer select-none hover:bg-muted/50"
+                    "cursor-pointer select-none hover:bg-slate-800/70 hover:text-white"
                 )}
                 onClick={() => handleSort(column.id, column.sortable)}
               >
@@ -74,7 +74,7 @@ export function DataTable<T extends { id: string }>({
             <TableRow>
               <TableCell
                 colSpan={columns.length}
-                className="h-24 text-center text-muted-foreground"
+                className="h-24 text-center text-slate-400"
               >
                 Loading...
               </TableCell>
@@ -83,7 +83,7 @@ export function DataTable<T extends { id: string }>({
             <TableRow>
               <TableCell
                 colSpan={columns.length}
-                className="h-24 text-center text-muted-foreground"
+                className="h-24 text-center text-slate-400"
               >
                 {emptyMessage}
               </TableCell>
