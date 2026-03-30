@@ -7,7 +7,8 @@ export function NavigationHeader() {
   const links = [
     { to: "/", label: "Home" },
     { to: "/universe-map", label: "Universe Map" },
-    { to: "/sources", label: "Sources" },
+    { to: "/source-analytics", label: "Source Analytics" },
+    { to: "/sources", label: "Sources" }
   ];
 
   const isActive = (path: string) => {
@@ -18,8 +19,8 @@ export function NavigationHeader() {
   };
 
   return (
-    <header className="w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <nav className="mx-auto flex max-w-7xl gap-3 px-6 py-4 text-sm">
+    <header className="w-full border-b border-white/10 bg-slate-950/80">
+      <nav className="mx-auto flex max-w-6xl gap-3 px-6 py-4 text-sm">
         {links.map((link) => (
           <Link
             key={link.to}

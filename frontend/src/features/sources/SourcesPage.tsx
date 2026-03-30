@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { NavigationHeader } from "@/components/NavigationHeader";
 import {
   Card,
   CardContent,
@@ -92,9 +91,7 @@ export function SourcesPage() {
   };
 
   return (
-    <main className="min-h-screen w-full bg-background">
-      <NavigationHeader />
-
+    <main className="min-h-screen w-full">
       <div className="container mx-auto py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">

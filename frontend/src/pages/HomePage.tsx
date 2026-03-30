@@ -1,6 +1,5 @@
 import heroImg from "../assets/hero.jpeg";
 import { UniverseMap } from "@/components/universe-map";
-import { NavigationHeader } from "@/components/NavigationHeader";
 import {
   Card,
   CardHeader,
@@ -11,9 +10,7 @@ import {
 
 export function HomePage() {
   return (
-    <main className="min-h-screen w-full bg-black flex flex-col text-white">
-      <NavigationHeader />
-
+    <main className="min-h-screen w-full flex flex-col text-white">
       <div className="w-full h-[50vh] shrink-0 relative border-b border-white/10">
         <UniverseMap />
       </div>
