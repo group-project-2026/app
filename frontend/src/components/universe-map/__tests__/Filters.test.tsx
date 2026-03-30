@@ -86,7 +86,7 @@ describe("Filters", () => {
     render(<Filters activeCategories={active} onToggle={jest.fn()} />);
 
     const starLabel = screen.getByText("Star");
-    expect(starLabel.className).toContain("text-[var(--cat-color)]");
+    expect(starLabel.className).toContain("text-(--cat-color)");
   });
 
   it("should apply muted color styling when unchecked", () => {

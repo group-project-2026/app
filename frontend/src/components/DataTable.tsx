@@ -1,4 +1,3 @@
-import * as React from "react";
 import { ChevronUpIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import {
   Table,

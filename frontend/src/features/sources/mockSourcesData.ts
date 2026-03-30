@@ -26,7 +26,6 @@ const SOURCE_NAME_PREFIXES: Record<SourceClass, string[]> = {
 
 function generateSourceName(
   sourceClass: SourceClass,
-  index: number,
   random: () => number
 ): string {
   const prefixes = SOURCE_NAME_PREFIXES[sourceClass];
@@ -97,7 +96,7 @@ function generateMockSources(): Source[] {
 
       sources.push({
         id: `src-${id}`,
-        name: generateSourceName(sourceClass, i, random),
+        name: generateSourceName(sourceClass, random),
         ra: parseFloat(ra.toFixed(4)),
         dec: parseFloat(dec.toFixed(4)),
         glon: parseFloat(glon.toFixed(4)),

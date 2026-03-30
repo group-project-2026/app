@@ -11,18 +11,17 @@ import { MOCK_POINTS } from "./data/mock-points";
 import type { CosmicCategory, CosmicPoint } from "./types";
 import { CATEGORY_META } from "./types";
 
-const ALL_CATEGORIES = new Set(
-  Object.keys(CATEGORY_META) as CosmicCategory[],
-);
+const ALL_CATEGORIES = new Set(Object.keys(CATEGORY_META) as CosmicCategory[]);
 
 export function UniverseMap() {
   const [selectedPoint, setSelectedPoint] = useState<CosmicPoint | null>(null);
-  const [activeCategories, setActiveCategories] =
-    useState<Set<CosmicCategory>>(new Set(ALL_CATEGORIES));
+  const [activeCategories, setActiveCategories] = useState<Set<CosmicCategory>>(
+    new Set(ALL_CATEGORIES)
+  );
 
   const filteredPoints = useMemo(
     () => MOCK_POINTS.filter((p) => activeCategories.has(p.category)),
-    [activeCategories],
+    [activeCategories]
   );
 
   const handleSelectPoint = useCallback((point: CosmicPoint) => {
@@ -74,10 +73,7 @@ export function UniverseMap() {
           <pointLight position={[-10, -10, -10]} intensity={0.3} />
 
           <CelestialSphere />
-          <CosmicPoints
-            points={filteredPoints}
-            onSelect={handleSelectPoint}
-          />
+          <CosmicPoints points={filteredPoints} onSelect={handleSelectPoint} />
           <CoordinateOverlay />
           <OrbitControls
             enablePan={true}
@@ -99,16 +95,13 @@ export function UniverseMap() {
         />
 
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 text-[11px] text-white/25 select-none pointer-events-none whitespace-nowrap">
-          Drag to orbit · Scroll to zoom · Right-drag to pan · Click a point
-          for details
+          Drag to orbit · Scroll to zoom · Right-drag to pan · Click a point for
+          details
         </div>
       </div>
       {panelOpen && (
         <div className="h-full shrink-0 animate-in slide-in-from-right-4 duration-300 w-[420px]">
-          <PointDetailPanel
-            point={selectedPoint}
-            onClose={handleCloseDetail}
-          />
+          <PointDetailPanel point={selectedPoint} onClose={handleCloseDetail} />
         </div>
       )}
     </div>
