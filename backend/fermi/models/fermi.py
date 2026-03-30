@@ -28,13 +28,14 @@ class FermiSource(models.Model):
     flux1000_err = models.FloatField(null=True, blank=True)
 
     # --- Znaczność detekcji ---
-    significance = models.FloatField(null=True, blank=True, help_text="Signif_Avg [sigma]")
+    significance = models.FloatField(
+        null=True, blank=True, help_text="Signif_Avg [sigma]"
+    )
     ts = models.FloatField(null=True, blank=True, help_text="Test Statistic")
 
     # --- Właściwości spektralne ---
     spectral_type = models.CharField(
-        max_length=16, blank=True,
-        help_text="PowerLaw | LogParabola | PLExpCutoff"
+        max_length=16, blank=True, help_text="PowerLaw | LogParabola | PLExpCutoff"
     )
     pivot_energy = models.FloatField(null=True, blank=True, help_text="[MeV]")
     spectral_index = models.FloatField(null=True, blank=True)
@@ -104,7 +105,9 @@ class SedPoint(models.Model):
 
     # Flux fotonowy
     flux = models.FloatField(null=True, blank=True, help_text="[ph cm⁻² s⁻¹]")
-    err_lo = models.FloatField(null=True, blank=True, help_text="dolny błąd (wartość dodatnia)")
+    err_lo = models.FloatField(
+        null=True, blank=True, help_text="dolny błąd (wartość dodatnia)"
+    )
     err_hi = models.FloatField(null=True, blank=True, help_text="górny błąd")
 
     # True jeśli flux <= 0 (górna granica detekcji)

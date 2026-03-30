@@ -5,67 +5,168 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='FermiSource',
+            name="FermiSource",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('source_name', models.CharField(db_index=True, max_length=32, unique=True)),
-                ('source_class', models.CharField(blank=True, db_index=True, max_length=8)),
-                ('associated_name', models.CharField(blank=True, max_length=64)),
-                ('ra', models.FloatField(help_text='Right Ascension J2000 [deg]')),
-                ('dec', models.FloatField(help_text='Declination J2000 [deg]')),
-                ('glon', models.FloatField(help_text='Galactic longitude [deg]')),
-                ('glat', models.FloatField(help_text='Galactic latitude [deg]')),
-                ('pos_err_semi_major', models.FloatField(blank=True, help_text='[deg]', null=True)),
-                ('pos_err_semi_minor', models.FloatField(blank=True, help_text='[deg]', null=True)),
-                ('pos_err_angle', models.FloatField(blank=True, help_text='[deg]', null=True)),
-                ('flux1000', models.FloatField(blank=True, help_text='[ph cm⁻² s⁻¹]', null=True)),
-                ('flux1000_err', models.FloatField(blank=True, null=True)),
-                ('significance', models.FloatField(blank=True, help_text='Signif_Avg [sigma]', null=True)),
-                ('ts', models.FloatField(blank=True, help_text='Test Statistic', null=True)),
-                ('spectral_type', models.CharField(blank=True, help_text='PowerLaw | LogParabola | PLExpCutoff', max_length=16)),
-                ('pivot_energy', models.FloatField(blank=True, help_text='[MeV]', null=True)),
-                ('spectral_index', models.FloatField(blank=True, null=True)),
-                ('spectral_index_err', models.FloatField(blank=True, null=True)),
-                ('redshift', models.FloatField(blank=True, db_index=True, null=True)),
-                ('variability_index', models.FloatField(blank=True, null=True)),
-                ('is_variable', models.BooleanField(default=False)),
-                ('flags', models.IntegerField(default=0, help_text='Bitmask z katalogu 4FGL')),
-                ('data_release', models.SmallIntegerField(default=2, help_text='4FGL DataRelease: 1=DR1, 2=DR2, …')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "source_name",
+                    models.CharField(db_index=True, max_length=32, unique=True),
+                ),
+                (
+                    "source_class",
+                    models.CharField(blank=True, db_index=True, max_length=8),
+                ),
+                ("associated_name", models.CharField(blank=True, max_length=64)),
+                ("ra", models.FloatField(help_text="Right Ascension J2000 [deg]")),
+                ("dec", models.FloatField(help_text="Declination J2000 [deg]")),
+                ("glon", models.FloatField(help_text="Galactic longitude [deg]")),
+                ("glat", models.FloatField(help_text="Galactic latitude [deg]")),
+                (
+                    "pos_err_semi_major",
+                    models.FloatField(blank=True, help_text="[deg]", null=True),
+                ),
+                (
+                    "pos_err_semi_minor",
+                    models.FloatField(blank=True, help_text="[deg]", null=True),
+                ),
+                (
+                    "pos_err_angle",
+                    models.FloatField(blank=True, help_text="[deg]", null=True),
+                ),
+                (
+                    "flux1000",
+                    models.FloatField(blank=True, help_text="[ph cm⁻² s⁻¹]", null=True),
+                ),
+                ("flux1000_err", models.FloatField(blank=True, null=True)),
+                (
+                    "significance",
+                    models.FloatField(
+                        blank=True, help_text="Signif_Avg [sigma]", null=True
+                    ),
+                ),
+                (
+                    "ts",
+                    models.FloatField(
+                        blank=True, help_text="Test Statistic", null=True
+                    ),
+                ),
+                (
+                    "spectral_type",
+                    models.CharField(
+                        blank=True,
+                        help_text="PowerLaw | LogParabola | PLExpCutoff",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "pivot_energy",
+                    models.FloatField(blank=True, help_text="[MeV]", null=True),
+                ),
+                ("spectral_index", models.FloatField(blank=True, null=True)),
+                ("spectral_index_err", models.FloatField(blank=True, null=True)),
+                ("redshift", models.FloatField(blank=True, db_index=True, null=True)),
+                ("variability_index", models.FloatField(blank=True, null=True)),
+                ("is_variable", models.BooleanField(default=False)),
+                (
+                    "flags",
+                    models.IntegerField(default=0, help_text="Bitmask z katalogu 4FGL"),
+                ),
+                (
+                    "data_release",
+                    models.SmallIntegerField(
+                        default=2, help_text="4FGL DataRelease: 1=DR1, 2=DR2, …"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'db_table': 'fermi_source',
-                'ordering': ['-significance'],
-                'indexes': [models.Index(fields=['ra', 'dec'], name='fermi_sourc_ra_35563b_idx'), models.Index(fields=['source_class'], name='fermi_sourc_source__3c85c3_idx'), models.Index(fields=['redshift'], name='fermi_sourc_redshif_167fd3_idx')],
+                "db_table": "fermi_source",
+                "ordering": ["-significance"],
+                "indexes": [
+                    models.Index(
+                        fields=["ra", "dec"], name="fermi_sourc_ra_35563b_idx"
+                    ),
+                    models.Index(
+                        fields=["source_class"], name="fermi_sourc_source__3c85c3_idx"
+                    ),
+                    models.Index(
+                        fields=["redshift"], name="fermi_sourc_redshif_167fd3_idx"
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='SedPoint',
+            name="SedPoint",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('band', models.SmallIntegerField(choices=[(1, '50–100 MeV'), (2, '100–300 MeV'), (3, '300 MeV–1 GeV'), (4, '1–3 GeV'), (5, '3–10 GeV'), (6, '10–100 GeV'), (7, '100 GeV–1 TeV')])),
-                ('e_min', models.FloatField(help_text='[MeV]')),
-                ('e_max', models.FloatField(help_text='[MeV]')),
-                ('e_center', models.FloatField(help_text='sqrt(e_min * e_max) [MeV]')),
-                ('flux', models.FloatField(blank=True, help_text='[ph cm⁻² s⁻¹]', null=True)),
-                ('err_lo', models.FloatField(blank=True, help_text='dolny błąd (wartość dodatnia)', null=True)),
-                ('err_hi', models.FloatField(blank=True, help_text='górny błąd', null=True)),
-                ('is_upper_limit', models.BooleanField(default=False)),
-                ('source', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sed_points', to='fermi.fermisource')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "band",
+                    models.SmallIntegerField(
+                        choices=[
+                            (1, "50–100 MeV"),
+                            (2, "100–300 MeV"),
+                            (3, "300 MeV–1 GeV"),
+                            (4, "1–3 GeV"),
+                            (5, "3–10 GeV"),
+                            (6, "10–100 GeV"),
+                            (7, "100 GeV–1 TeV"),
+                        ]
+                    ),
+                ),
+                ("e_min", models.FloatField(help_text="[MeV]")),
+                ("e_max", models.FloatField(help_text="[MeV]")),
+                ("e_center", models.FloatField(help_text="sqrt(e_min * e_max) [MeV]")),
+                (
+                    "flux",
+                    models.FloatField(blank=True, help_text="[ph cm⁻² s⁻¹]", null=True),
+                ),
+                (
+                    "err_lo",
+                    models.FloatField(
+                        blank=True, help_text="dolny błąd (wartość dodatnia)", null=True
+                    ),
+                ),
+                (
+                    "err_hi",
+                    models.FloatField(blank=True, help_text="górny błąd", null=True),
+                ),
+                ("is_upper_limit", models.BooleanField(default=False)),
+                (
+                    "source",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="sed_points",
+                        to="fermi.fermisource",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'fermi_sed_point',
-                'ordering': ['band'],
-                'unique_together': {('source', 'band')},
+                "db_table": "fermi_sed_point",
+                "ordering": ["band"],
+                "unique_together": {("source", "band")},
             },
         ),
     ]

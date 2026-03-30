@@ -42,7 +42,9 @@ DJANGO_APPS = [
     "rest_framework",
 ]
 
-OUR_APPS = ["fermi",]
+OUR_APPS = [
+    "fermi",
+]
 
 INSTALLED_APPS = OUR_APPS + DJANGO_APPS
 

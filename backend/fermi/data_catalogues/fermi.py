@@ -11,7 +11,6 @@ import os
 import numpy as np
 import requests
 from astropy.table import Table
-from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from app.settings import FILES_DIR
@@ -23,13 +22,13 @@ FITS_URL = (
 FITS_LOCAL = FILES_DIR / "gll_psc_v27.fit"
 
 BAND_EDGES = [
-    (1,  50,      100),
-    (2,  100,     300),
-    (3,  300,     1_000),
-    (4,  1_000,   3_000),
-    (5,  3_000,   10_000),
-    (6,  10_000,  100_000),
-    (7,  100_000, 1_000_000),
+    (1, 50, 100),
+    (2, 100, 300),
+    (3, 300, 1_000),
+    (4, 1_000, 3_000),
+    (5, 3_000, 10_000),
+    (6, 10_000, 100_000),
+    (7, 100_000, 1_000_000),
 ]
 
 
@@ -132,9 +131,7 @@ class FermiDataImporter:
             )
 
             source.sed_points.all().delete()
-            SedPoint.objects.bulk_create(
-                self._sed_points(source, row, cols)
-            )
+            SedPoint.objects.bulk_create(self._sed_points(source, row, cols))
 
             if created:
                 created_count += 1
@@ -154,33 +151,51 @@ class FermiDataImporter:
 
     def _source_defaults(self, row, cols: set) -> dict:
         return {
-            "source_class":       _s(row["CLASS1"])                   if "CLASS1"           in cols else "",
-            "associated_name":    _s(row["ASSOC1"])                   if "ASSOC1"           in cols else "",
-            "ra":                 float(row["RAJ2000"]),
-            "dec":                float(row["DEJ2000"]),
-            "glon":               float(row["GLON"]),
-            "glat":               float(row["GLAT"]),
-            "pos_err_semi_major": _f(row["Conf_95_SemiMajor"])        if "Conf_95_SemiMajor" in cols else None,
-            "pos_err_semi_minor": _f(row["Conf_95_SemiMinor"])        if "Conf_95_SemiMinor" in cols else None,
-            "pos_err_angle":      _f(row["Conf_95_PosAng"])           if "Conf_95_PosAng"    in cols else None,
-            "flux1000":           _f(row["Flux1000"])                 if "Flux1000"          in cols else None,
-            "flux1000_err":       _f(row["Unc_Flux1000"])             if "Unc_Flux1000"      in cols else None,
-            "significance":       _f(row["Signif_Avg"])               if "Signif_Avg"        in cols else None,
-            "ts":                 _f(row["Test_Statistic"])           if "Test_Statistic"    in cols else None,
-            "spectral_type":      _s(row["SpectrumType"])             if "SpectrumType"      in cols else "",
-            "pivot_energy":       _f(row["Pivot_Energy"])             if "Pivot_Energy"      in cols else None,
-            "spectral_index":     _f(row["PL_Index"])                 if "PL_Index"          in cols else None,
-            "spectral_index_err": _f(row["Unc_PL_Index"])             if "Unc_PL_Index"      in cols else None,
-            "redshift":           _f(row["Redshift"])                 if "Redshift"          in cols else None,
-            "variability_index":  _f(row["Variability_Index"])        if "Variability_Index" in cols else None,
-            "is_variable":        bool(int(row["Flags"]) & (1 << 2)) if "Flags"             in cols else False,
-            "flags":              int(row["Flags"])                   if "Flags"             in cols else 0,
-            "data_release":       int(row["DataRelease"])             if "DataRelease"       in cols else 2,
+            "source_class": _s(row["CLASS1"]) if "CLASS1" in cols else "",
+            "associated_name": _s(row["ASSOC1"]) if "ASSOC1" in cols else "",
+            "ra": float(row["RAJ2000"]),
+            "dec": float(row["DEJ2000"]),
+            "glon": float(row["GLON"]),
+            "glat": float(row["GLAT"]),
+            "pos_err_semi_major": _f(row["Conf_95_SemiMajor"])
+            if "Conf_95_SemiMajor" in cols
+            else None,
+            "pos_err_semi_minor": _f(row["Conf_95_SemiMinor"])
+            if "Conf_95_SemiMinor" in cols
+            else None,
+            "pos_err_angle": _f(row["Conf_95_PosAng"])
+            if "Conf_95_PosAng" in cols
+            else None,
+            "flux1000": _f(row["Flux1000"]) if "Flux1000" in cols else None,
+            "flux1000_err": _f(row["Unc_Flux1000"]) if "Unc_Flux1000" in cols else None,
+            "significance": _f(row["Signif_Avg"]) if "Signif_Avg" in cols else None,
+            "ts": _f(row["Test_Statistic"]) if "Test_Statistic" in cols else None,
+            "spectral_type": _s(row["SpectrumType"]) if "SpectrumType" in cols else "",
+            "pivot_energy": _f(row["Pivot_Energy"]) if "Pivot_Energy" in cols else None,
+            "spectral_index": _f(row["PL_Index"]) if "PL_Index" in cols else None,
+            "spectral_index_err": _f(row["Unc_PL_Index"])
+            if "Unc_PL_Index" in cols
+            else None,
+            "redshift": _f(row["Redshift"]) if "Redshift" in cols else None,
+            "variability_index": _f(row["Variability_Index"])
+            if "Variability_Index" in cols
+            else None,
+            "is_variable": bool(int(row["Flags"]) & (1 << 2))
+            if "Flags" in cols
+            else False,
+            "flags": int(row["Flags"]) if "Flags" in cols else 0,
+            "data_release": int(row["DataRelease"]) if "DataRelease" in cols else 2,
         }
 
     def _sed_points(self, source: FermiSource, row, cols: set) -> list[SedPoint]:
-        flux_band = np.array(row["Flux_Band"],     dtype=float) if "Flux_Band"     in cols else None
-        unc_band  = np.array(row["Unc_Flux_Band"], dtype=float) if "Unc_Flux_Band" in cols else None
+        flux_band = (
+            np.array(row["Flux_Band"], dtype=float) if "Flux_Band" in cols else None
+        )
+        unc_band = (
+            np.array(row["Unc_Flux_Band"], dtype=float)
+            if "Unc_Flux_Band" in cols
+            else None
+        )
 
         points = []
         for band_idx, e_min, e_max in BAND_EDGES:
@@ -192,24 +207,26 @@ class FermiDataImporter:
 
             if unc_band is not None and i < len(unc_band):
                 unc = np.atleast_1d(unc_band[i])
-                if unc.shape == (2,):               # asymetryczne [−σ, +σ]
+                if unc.shape == (2,):  # asymetryczne [−σ, +σ]
                     err_lo = abs(_f(unc[0]) or 0.0)
                     err_hi = abs(_f(unc[1]) or 0.0)
-                else:                               # symetryczne
+                else:  # symetryczne
                     v = abs(_f(unc[0]) or 0.0)
                     err_lo = err_hi = v
 
-            points.append(SedPoint(
-                source=source,
-                band=band_idx,
-                e_min=e_min,
-                e_max=e_max,
-                e_center=math.sqrt(e_min * e_max),
-                flux=flux,
-                err_lo=err_lo,
-                err_hi=err_hi,
-                is_upper_limit=flux is not None and flux <= 0,
-            ))
+            points.append(
+                SedPoint(
+                    source=source,
+                    band=band_idx,
+                    e_min=e_min,
+                    e_max=e_max,
+                    e_center=math.sqrt(e_min * e_max),
+                    flux=flux,
+                    err_lo=err_lo,
+                    err_hi=err_hi,
+                    is_upper_limit=flux is not None and flux <= 0,
+                )
+            )
 
         return points
 
