@@ -1,30 +1,58 @@
 import React from "react";
 
+const THREE_LIGHT_TAGS = new Set(["ambientLight", "pointLight"]);
+
+function sanitizeCanvasChildren(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (!React.isValidElement<{ children?: React.ReactNode }>(child)) {
+      return child;
+    }
+
+    if (typeof child.type === "string" && THREE_LIGHT_TAGS.has(child.type)) {
+      return null;
+    }
+
+    if (child.props.children == null) {
+      return child;
+    }
+
+    return React.cloneElement(child, {
+      children: sanitizeCanvasChildren(child.props.children)
+    });
+  });
+}
+
 jest.mock("@react-three/fiber", () => ({
   Canvas: ({ children }: { children: React.ReactNode }) =>
-    React.createElement("div", { "data-testid": "r3f-canvas" }, children),
+    React.createElement(
+      "div",
+      { "data-testid": "r3f-canvas" },
+      sanitizeCanvasChildren(children)
+    ),
   useThree: () => ({
-    camera: { getWorldDirection: jest.fn() },
+    camera: { getWorldDirection: jest.fn() }
   }),
-  useFrame: jest.fn(),
+  useFrame: jest.fn()
 }));
 
 jest.mock("@react-three/drei", () => ({
-  OrbitControls: () => React.createElement("div", { "data-testid": "orbit-controls" }),
+  OrbitControls: () =>
+    React.createElement("div", { "data-testid": "orbit-controls" }),
   Stars: () => React.createElement("div", { "data-testid": "stars" }),
   Line: () => null,
-  Html: () => null,
+  Html: () => null
 }));
 
 jest.mock("../CelestialSphere", () => ({
-  CelestialSphere: () => React.createElement("div", { "data-testid": "celestial-sphere" }),
-  SPHERE_RADIUS: 5,
+  CelestialSphere: () =>
+    React.createElement("div", { "data-testid": "celestial-sphere" }),
+  SPHERE_RADIUS: 5
 }));
 
 jest.mock("../CosmicPoint", () => ({
   CosmicPoints: ({
     points,
-    onSelect,
+    onSelect
   }: {
     points: { id: string; name: string }[];
     onSelect: (p: { id: string; name: string }) => void;
@@ -35,15 +63,20 @@ jest.mock("../CosmicPoint", () => ({
       points.slice(0, 3).map((p) =>
         React.createElement(
           "button",
-          { key: p.id, "data-testid": `point-${p.id}`, onClick: () => onSelect(p) },
-          p.name,
-        ),
-      ),
-    ),
+          {
+            key: p.id,
+            "data-testid": `point-${p.id}`,
+            onClick: () => onSelect(p)
+          },
+          p.name
+        )
+      )
+    )
 }));
 
 jest.mock("../CoordinateOverlay", () => ({
-  CoordinateOverlay: () => React.createElement("div", { "data-testid": "coordinate-overlay" }),
+  CoordinateOverlay: () =>
+    React.createElement("div", { "data-testid": "coordinate-overlay" })
 }));
 
 import { render, screen } from "@testing-library/react";
@@ -118,7 +151,7 @@ describe("UniverseMap", () => {
     // Find the close button (the one that is NOT a point button)
     const allButtons = screen.getAllByRole("button");
     const closeButton = allButtons.find(
-      (btn) => !btn.getAttribute("data-testid")?.startsWith("point-"),
+      (btn) => !btn.getAttribute("data-testid")?.startsWith("point-")
     );
     expect(closeButton).toBeTruthy();
     await user.click(closeButton!);
@@ -131,7 +164,7 @@ describe("UniverseMap", () => {
     render(<UniverseMap />);
 
     const initialCount = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
     expect(initialCount).toBe(100);
 
@@ -140,7 +173,7 @@ describe("UniverseMap", () => {
     await user.click(starElements[1]);
 
     const newCount = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
     expect(newCount).toBeLessThan(100);
   });
@@ -152,12 +185,12 @@ describe("UniverseMap", () => {
     const starElements = screen.getAllByText("Star");
     await user.click(starElements[1]);
     const reduced = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
 
     await user.click(starElements[1]);
     const restored = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
 
     expect(restored).toBe(100);
