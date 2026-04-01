@@ -1,0 +1,165 @@
+{
+  "navigation": {
+    "home": "Strona główna",
+    "universeMap": "Mapa Wszechświata",
+    "analytics": "Analityka",
+    "sources": "Źródła",
+    "navigation": "Nawigacja",
+    "spaceNavigation": "Nawigacja kosmiczna",
+    "openMenu": "Otwórz menu",
+    "closeMenu": "Zamknij menu"
+  },
+  "universeMap": {
+    "instructions": "Przeciągnij aby orbitować · Przewiń aby przybliżyć · Prawy przycisk aby przesunąć · Kliknij punkt aby zobaczyć szczegóły",
+    "filters": "Filtry",
+    "legend": "Legenda",
+    "categories": {
+      "star": "Gwiazda",
+      "galaxy": "Galaktyka",
+      "nebula": "Mgławica",
+      "pulsar": "Pulsar",
+      "quasar": "Kwazar",
+      "blackHole": "Czarna dziura",
+      "planet": "Planeta",
+      "cluster": "Gromada"
+    }
+  },
+  "pointDetail": {
+    "rightAscension": "Rektascensja",
+    "declination": "Deklinacja",
+    "distance": "Odległość",
+    "magnitude": "Jasność",
+    "discoveredBy": "Odkryte przez",
+    "description": "Opis",
+    "observationNotes": "Notatki obserwacyjne",
+    "spectralAnalysis": "Analiza spektralna",
+    "chartPlaceholder": "Wykres zastępczy — rozkład energii spektralnej",
+    "angularPosition": "Pozycja kątowa",
+    "angularPlaceholder": "Zastępczy — współrzędne galaktyczne, kąt zenitalny, azymut",
+    "fluxEnergy": "Strumień i energia",
+    "fluxPlaceholder": "Zastępczy — wykres strumienia vs energia, dopasowanie prawa potęgowego"
+  },
+  "sources": {
+    "title": "Źródła promieniowania gamma",
+    "description": "Przeglądaj i filtruj źródła promieniowania gamma z różnych katalogów astronomicznych",
+    "filters": "Filtry",
+    "filtersDescription": "Doprecyzuj wyszukiwanie używając filtrów poniżej",
+    "errorLoading": "Błąd ładowania źródeł: {{message}}",
+    "noResults": "Nie znaleziono źródeł. Spróbuj dostosować filtry.",
+    "backToSources": "← Powrót do źródeł",
+    "sourceId": "ID źródła: {{id}}",
+    "detailPlaceholder": "Implementacja strony szczegółów wkrótce...",
+    "columns": {
+      "sourceName": "Nazwa źródła",
+      "class": "Klasa",
+      "ra": "RA (°)",
+      "dec": "Dec (°)",
+      "glon": "GLON (°)",
+      "glat": "GLAT (°)",
+      "flux": "Strumień (ph/cm²/s)",
+      "spectralIndex": "Indeks spektralny",
+      "significance": "Istotność (σ)",
+      "unknown": "Nieznana"
+    },
+    "filterLabels": {
+      "search": "Wyszukaj",
+      "searchPlaceholder": "Szukaj po nazwie źródła...",
+      "sourceClass": "Klasa źródła",
+      "raRange": "Zakres RA (°)",
+      "decRange": "Zakres Dec (°)",
+      "minFlux": "Min. strumień (ph/cm²/s)",
+      "fluxPlaceholder": "np. 1e-9",
+      "minSignificance": "Min. istotność (σ)",
+      "sigPlaceholder": "np. 5"
+    },
+    "classes": {
+      "pulsar": "Pulsar",
+      "blLac": "BL Lac",
+      "fsrq": "Kwazar radiowy o płaskim widmie",
+      "agn": "Aktywne jądro galaktyczne",
+      "unknown": "Nieznana",
+      "binary": "Układ podwójny",
+      "hmb": "Układ podwójny dużej masy",
+      "snr": "Pozostałość supernowej"
+    }
+  },
+  "dataTable": {
+    "loading": "Ładowanie...",
+    "noResults": "Nie znaleziono wyników.",
+    "selectedCount": "{{count}} wybrano",
+    "selectPlaceholder": "Wybierz...",
+    "searchPlaceholder": "Szukaj...",
+    "activeFilters": "Aktywne filtry:",
+    "filterBadge": "{{label}}: {{value}}",
+    "clearAll": "Wyczyść wszystkie",
+    "rowsPerPage": "Wierszy na stronę",
+    "showingResults": "Wyświetlanie {{start}}-{{end}} z {{total}}",
+    "noResultsPagination": "Brak wyników",
+    "goToFirstPage": "Przejdź do pierwszej strony",
+    "goToPreviousPage": "Przejdź do poprzedniej strony",
+    "goToNextPage": "Przejdź do następnej strony",
+    "goToLastPage": "Przejdź do ostatniej strony"
+  },
+  "analytics": {
+    "title": "Analityka katalogów",
+    "description": "Analityka dla katalogów Fermi, HAWC, LHAASO, NED, TeVCat i MAGIC: emisja, istotność statystyczna, porównania między katalogami, osobna sekcja detectability oraz groupingi i agregacje pod analizę.",
+    "analysisScope": "Zakres analizy",
+    "analysisScopeDescription": "Wybierz katalogi i poziom agregacji do sekcji porównawczej.",
+    "groupingsTitle": "Groupingi i agregacje pod analizę",
+    "groupingsDescription": "Aktualny grouping: {{grouping}}. Tabela zbiorcza dla wybranego wymiaru analitycznego.",
+    "groupingOptions": {
+      "catalog": "Katalog",
+      "year": "Rok",
+      "energyBand": "Pasmo energii",
+      "skyRegion": "Region nieba",
+      "sourceType": "Typ źródła"
+    },
+    "tableColumns": {
+      "group": "Grupa",
+      "samples": "Próbki",
+      "avgEmission": "Śr. emisja",
+      "medianEmission": "Mediana emisji",
+      "avgSigma": "Śr. sigma",
+      "peakSigma": "Szczyt sigma",
+      "avgDetectability": "Śr. detectability",
+      "highDetectabilityPercent": "High detectability %"
+    },
+    "metrics": {
+      "samples": "Próbki",
+      "avgEmission": "Średnia emisja",
+      "avgSigma": "Średnia sigma",
+      "highDetectability": "High detectability"
+    },
+    "groupingLabel": "Grouping dla tabeli agregacji",
+    "emissionTrend": "Wykresy emisji: trend roczny",
+    "emissionTrendDescription": "Średni strumień emisji dla wybranych katalogów w czasie.",
+    "emissionComparison": "Wykresy emisji: średnia vs maksimum",
+    "emissionComparisonDescription": "Porównanie poziomów emisji pomiędzy katalogami.",
+    "radarMetrics": {
+      "emissionIndex": "Indeks emisji",
+      "significanceIndex": "Indeks istotności",
+      "detectabilityIndex": "Indeks detectability",
+      "highDetectabilityShare": "Udział high detectability"
+    },
+    "sigmaLabels": {
+      "avgSigma": "Średnia sigma",
+      "percentile95": "95 percentyl sigma",
+      "maxSigma": "Maksimum sigma"
+    },
+    "detectabilityCategories": {
+      "low": "Niska",
+      "medium": "Średnia",
+      "high": "Wysoka"
+    },
+    "emissionLabels": {
+      "avgEmission": "Średnia emisja",
+      "peakEmission": "Szczyt emisji"
+    },
+    "significancePlot": "Wykres istotności statystycznej",
+    "significancePlotDescription": "Średnia, 95 percentyl i wartość maksymalna detekcji (sigma) na katalog.",
+    "catalogComparison": "Porównania między katalogami",
+    "catalogComparisonDescription": "Radar porównujący emisję, istotność i detectability po normalizacji.",
+    "detectabilitySection": "Detectability: osobna sekcja porównania",
+    "detectabilitySectionDescription": "Rozkład low/medium/high detectability dla każdego katalogu."
+  }
+}

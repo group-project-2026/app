@@ -1,4 +1,5 @@
 import { ChevronUpIcon, ChevronDownIcon } from "@radix-ui/react-icons";
+import { useTranslation } from "react-i18next";
 import {
   Table,
   TableBody,
@@ -17,8 +18,10 @@ export function DataTable<T extends { id: string }>({
   onSortChange,
   onRowClick,
   isLoading,
-  emptyMessage = "No results found."
+  emptyMessage
 }: DataTableProps<T>) {
+  const { t } = useTranslation();
+  const defaultEmptyMessage = emptyMessage || t("dataTable.noResults");
   const handleSort = (columnId: string, sortable: boolean = false) => {
     if (!sortable) return;
 
@@ -76,7 +79,7 @@ export function DataTable<T extends { id: string }>({
                 colSpan={columns.length}
                 className="h-24 text-center text-slate-400"
               >
-                Loading...
+                {t("dataTable.loading")}
               </TableCell>
             </TableRow>
           ) : data.length === 0 ? (
@@ -85,7 +88,7 @@ export function DataTable<T extends { id: string }>({
                 colSpan={columns.length}
                 className="h-24 text-center text-slate-400"
               >
-                {emptyMessage}
+                {defaultEmptyMessage}
               </TableCell>
             </TableRow>
           ) : (

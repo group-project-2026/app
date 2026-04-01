@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { CosmicPoint } from "./types";
 import { CATEGORY_META } from "./types";
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function PointDetailPanel({ point, onClose }: Props) {
+  const { t } = useTranslation();
   if (!point) return null;
 
   const meta = CATEGORY_META[point.category];
@@ -67,26 +69,26 @@ export function PointDetailPanel({ point, onClose }: Props) {
         <div className="p-5 space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <StatCard
-              label="Right Ascension"
+              label={t("pointDetail.rightAscension")}
               value={`${point.ra.toFixed(2)}°`}
             />
             <StatCard
-              label="Declination"
+              label={t("pointDetail.declination")}
               value={`${point.dec > 0 ? "+" : ""}${point.dec.toFixed(2)}°`}
             />
-            <StatCard label="Distance" value={point.distance} />
-            <StatCard label="Magnitude" value={point.magnitude.toFixed(1)} />
+            <StatCard label={t("pointDetail.distance")} value={point.distance} />
+            <StatCard label={t("pointDetail.magnitude")} value={point.magnitude.toFixed(1)} />
           </div>
 
           <Separator className="bg-white/10" />
 
-          <Section title="Discovered by">
+          <Section title={t("pointDetail.discoveredBy")}>
             <p className="text-sm text-white/80">{point.discoveredBy}</p>
           </Section>
 
           <Separator className="bg-white/10" />
 
-          <Section title="Description">
+          <Section title={t("pointDetail.description")}>
             <p className="text-sm text-white/70 leading-relaxed">
               {point.description}
             </p>
@@ -94,7 +96,7 @@ export function PointDetailPanel({ point, onClose }: Props) {
 
           <Separator className="bg-white/10" />
 
-          <Section title="Observation Notes">
+          <Section title={t("pointDetail.observationNotes")}>
             <p className="text-sm text-white/70 leading-relaxed">
               Vestibulum ante ipsum primis in faucibus orci luctus et ultrices
               posuere cubilia curae. Morbi lacinia molestie dui. Praesent
@@ -105,30 +107,30 @@ export function PointDetailPanel({ point, onClose }: Props) {
 
           <Separator className="bg-white/10" />
 
-          <Section title="Spectral Analysis">
+          <Section title={t("pointDetail.spectralAnalysis")}>
             <div className="rounded-lg bg-white/5 border border-white/5 p-6 flex items-center justify-center">
               <p className="text-xs text-white/30 italic">
-                Chart placeholder — spectral energy distribution
+                {t("pointDetail.chartPlaceholder")}
               </p>
             </div>
           </Section>
 
           <Separator className="bg-white/10" />
 
-          <Section title="Angular Position">
+          <Section title={t("pointDetail.angularPosition")}>
             <div className="rounded-lg bg-white/5 border border-white/5 p-6 flex items-center justify-center">
               <p className="text-xs text-white/30 italic">
-                Placeholder — galactic coordinates, zenith angle, azimuth
+                {t("pointDetail.angularPlaceholder")}
               </p>
             </div>
           </Section>
 
           <Separator className="bg-white/10" />
 
-          <Section title="Flux & Energy">
+          <Section title={t("pointDetail.fluxEnergy")}>
             <div className="rounded-lg bg-white/5 border border-white/5 p-6 flex items-center justify-center">
               <p className="text-xs text-white/30 italic">
-                Placeholder — flux vs energy plot, power-law fit
+                {t("pointDetail.fluxPlaceholder")}
               </p>
             </div>
           </Section>

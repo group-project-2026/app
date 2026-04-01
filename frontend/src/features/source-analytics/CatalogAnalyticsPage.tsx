@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -62,12 +63,12 @@ import {
   type GroupByDimension
 } from "./aggregations";
 
-const GROUPING_OPTIONS: Array<{ value: GroupByDimension; label: string }> = [
-  { value: "catalog", label: "Katalog" },
-  { value: "year", label: "Rok" },
-  { value: "energyBand", label: "Pasmo energii" },
-  { value: "skyRegion", label: "Region nieba" },
-  { value: "sourceType", label: "Typ źródła" }
+const GROUPING_OPTIONS_KEYS: Array<{ value: GroupByDimension; translationKey: string }> = [
+  { value: "catalog", translationKey: "analytics.groupingOptions.catalog" },
+  { value: "year", translationKey: "analytics.groupingOptions.year" },
+  { value: "energyBand", translationKey: "analytics.groupingOptions.energyBand" },
+  { value: "skyRegion", translationKey: "analytics.groupingOptions.skyRegion" },
+  { value: "sourceType", translationKey: "analytics.groupingOptions.sourceType" }
 ];
 
 function formatFlux(value: number | string | undefined): string {
@@ -109,6 +110,7 @@ function formatCatalogLabel(catalog: string): string {
 }
 
 export function CatalogAnalyticsPage() {
+  const { t } = useTranslation();
   const [selectedCatalogs, setSelectedCatalogs] =
     useState<CatalogKey[]>(CATALOG_KEYS);
   const [groupBy, setGroupBy] = useState<GroupByDimension>("catalog");
@@ -160,10 +162,10 @@ export function CatalogAnalyticsPage() {
     const byCatalog = new Map(radarRawData.map((item) => [item.catalog, item]));
 
     const entries = [
-      { key: "emissionIndex", label: "Emission index" },
-      { key: "significanceIndex", label: "Significance index" },
-      { key: "detectabilityIndex", label: "Detectability index" },
-      { key: "highDetectabilityShare", label: "High detectability share" }
+      { key: "emissionIndex", label: t("analytics.radarMetrics.emissionIndex") },
+      { key: "significanceIndex", label: t("analytics.radarMetrics.significanceIndex") },
+      { key: "detectabilityIndex", label: t("analytics.radarMetrics.detectabilityIndex") },
+      { key: "highDetectabilityShare", label: t("analytics.radarMetrics.highDetectabilityShare") }
     ] as const;
 
     return entries.map((entry) => {
@@ -178,7 +180,7 @@ export function CatalogAnalyticsPage() {
 
       return row;
     });
-  }, [radarRawData, selectedCatalogs]);
+  }, [radarRawData, selectedCatalogs, t]);
 
   const catalogChartConfig = useMemo(() => {
     const config: ChartConfig = {};
@@ -196,42 +198,42 @@ export function CatalogAnalyticsPage() {
   const significanceConfig = useMemo<ChartConfig>(
     () => ({
       avgSignificance: {
-        label: "Średnia sigma",
+        label: t("analytics.sigmaLabels.avgSigma"),
         color: "#4D908E"
       },
       p95Significance: {
-        label: "95 percentyl sigma",
+        label: t("analytics.sigmaLabels.percentile95"),
         color: "#F9844A"
       },
       peakSignificance: {
-        label: "Maksimum sigma",
+        label: t("analytics.sigmaLabels.maxSigma"),
         color: "#F94144"
       }
     }),
-    []
+    [t]
   );
 
   const detectabilityConfig = useMemo<ChartConfig>(
     () => ({
-      low: { label: "Low", color: "#577590" },
-      medium: { label: "Medium", color: "#F9C74F" },
-      high: { label: "High", color: "#43AA8B" }
+      low: { label: t("analytics.detectabilityCategories.low"), color: "#577590" },
+      medium: { label: t("analytics.detectabilityCategories.medium"), color: "#F9C74F" },
+      high: { label: t("analytics.detectabilityCategories.high"), color: "#43AA8B" }
     }),
-    []
+    [t]
   );
 
   const emissionComparisonConfig = useMemo<ChartConfig>(
     () => ({
       avgEmissionFlux: {
-        label: "Średnia emisja",
+        label: t("analytics.emissionLabels.avgEmission"),
         color: "#2A9D8F"
       },
       peakEmissionFlux: {
-        label: "Szczyt emisji",
+        label: t("analytics.emissionLabels.peakEmission"),
         color: "#E76F51"
       }
     }),
-    []
+    [t]
   );
 
   const toggleCatalog = (catalog: CatalogKey) => {
@@ -249,27 +251,25 @@ export function CatalogAnalyticsPage() {
   };
 
   const selectedGroupingLabel =
-    GROUPING_OPTIONS.find((item) => item.value === groupBy)?.label ?? "Katalog";
+    t(GROUPING_OPTIONS_KEYS.find((item) => item.value === groupBy)?.translationKey ?? "analytics.groupingOptions.catalog");
 
   return (
     <main className="min-h-screen w-full">
       <div className="container mx-auto py-8 space-y-6">
         <header className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">
-            Analityka Katalogów
+            {t("analytics.title")}
           </h1>
           <p className="text-muted-foreground max-w-3xl">
-            Analityka dla katalogów Fermin, HAWC, LHAASO, NED, TeVCat i MAGIC:
-            emisja, istotność statystyczna, porównania między katalogami, osobna
-            sekcja detectability oraz groupingi i agregacje pod analizę.
+            {t("analytics.description")}
           </p>
         </header>
 
         <Card>
           <CardHeader>
-            <CardTitle>Zakres analizy</CardTitle>
+            <CardTitle>{t("analytics.analysisScope")}</CardTitle>
             <CardDescription>
-              Wybierz katalogi i poziom agregacji do sekcji porównawczej.
+              {t("analytics.analysisScopeDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -292,24 +292,23 @@ export function CatalogAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Groupingi i agregacje pod analizę</CardTitle>
+                <CardTitle>{t("analytics.groupingsTitle")}</CardTitle>
                 <CardDescription>
-                  Aktualny grouping: {selectedGroupingLabel}. Tabela zbiorcza
-                  dla wybranego wymiaru analitycznego.
+                  {t("analytics.groupingsDescription", { grouping: selectedGroupingLabel })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Grupa</TableHead>
-                      <TableHead>Próbki</TableHead>
-                      <TableHead>Avg emission</TableHead>
-                      <TableHead>Median emission</TableHead>
-                      <TableHead>Avg sigma</TableHead>
-                      <TableHead>Peak sigma</TableHead>
-                      <TableHead>Avg detectability</TableHead>
-                      <TableHead>High detectability %</TableHead>
+                      <TableHead>{t("analytics.tableColumns.group")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.samples")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.avgEmission")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.medianEmission")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.avgSigma")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.peakSigma")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.avgDetectability")}</TableHead>
+                      <TableHead>{t("analytics.tableColumns.highDetectabilityPercent")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -343,13 +342,13 @@ export function CatalogAnalyticsPage() {
             <div className="grid gap-3 md:grid-cols-4">
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>Próbki</CardDescription>
+                  <CardDescription>{t("analytics.tableColumns.samples")}</CardDescription>
                   <CardTitle>{headlineMetrics.samples}</CardTitle>
                 </CardHeader>
               </Card>
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>Średnia emisja</CardDescription>
+                  <CardDescription>{t("analytics.metrics.avgEmission")}</CardDescription>
                   <CardTitle>
                     {formatFlux(headlineMetrics.avgEmissionFlux)}
                   </CardTitle>
@@ -357,7 +356,7 @@ export function CatalogAnalyticsPage() {
               </Card>
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>Średnia sigma</CardDescription>
+                  <CardDescription>{t("analytics.metrics.avgSigma")}</CardDescription>
                   <CardTitle>
                     {formatFloat(headlineMetrics.avgSignificance)}
                   </CardTitle>
@@ -365,7 +364,7 @@ export function CatalogAnalyticsPage() {
               </Card>
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>High detectability</CardDescription>
+                  <CardDescription>{t("analytics.metrics.highDetectability")}</CardDescription>
                   <CardTitle>
                     {formatFloat(headlineMetrics.highDetectabilityShare, 1)}%
                   </CardTitle>
@@ -375,7 +374,7 @@ export function CatalogAnalyticsPage() {
 
             <div className="max-w-sm space-y-2">
               <p className="text-sm text-muted-foreground">
-                Grouping dla tabeli agregacji
+                {t("analytics.groupingLabel")}
               </p>
               <Select
                 value={groupBy}
@@ -385,9 +384,9 @@ export function CatalogAnalyticsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GROUPING_OPTIONS.map((option) => (
+                  {GROUPING_OPTIONS_KEYS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.translationKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -399,9 +398,9 @@ export function CatalogAnalyticsPage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Wykresy emisji: trend roczny</CardTitle>
+              <CardTitle>{t("analytics.emissionTrend")}</CardTitle>
               <CardDescription>
-                Średni strumień emisji dla wybranych katalogów w czasie.
+                {t("analytics.emissionTrendDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -442,9 +441,9 @@ export function CatalogAnalyticsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Wykresy emisji: średnia vs maksimum</CardTitle>
+              <CardTitle>{t("analytics.emissionComparison")}</CardTitle>
               <CardDescription>
-                Porównanie poziomów emisji pomiędzy katalogami.
+                {t("analytics.emissionComparisonDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -486,10 +485,9 @@ export function CatalogAnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Wykres istotności statystycznej</CardTitle>
+            <CardTitle>{t("analytics.significancePlot")}</CardTitle>
             <CardDescription>
-              Średnia, 95 percentyl i wartość maksymalna detekcji (sigma) na
-              katalog.
+              {t("analytics.significancePlotDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -531,10 +529,9 @@ export function CatalogAnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Porównania między katalogami</CardTitle>
+            <CardTitle>{t("analytics.catalogComparison")}</CardTitle>
             <CardDescription>
-              Radar porównujący emisję, istotność i detectability po
-              normalizacji.
+              {t("analytics.catalogComparisonDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -570,9 +567,9 @@ export function CatalogAnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Detectability: osobna sekcja porównania</CardTitle>
+            <CardTitle>{t("analytics.detectabilitySection")}</CardTitle>
             <CardDescription>
-              Rozkład low/medium/high detectability dla każdego katalogu.
+              {t("analytics.detectabilitySectionDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
