@@ -13,9 +13,9 @@ interface Props {
 }
 
 export function PointDetailPanel({ point, onClose }: Props) {
+  const { t } = useTranslation();
   if (!point) return null;
 
-  const { t } = useTranslation();
   const meta = CATEGORY_META[point.category];
 
   return (
