@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Globe, Database, BarChart3, ArrowRight } from "lucide-react";
+import { CosmicParticles } from "@/components/CosmicParticles";
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -33,8 +34,9 @@ export function HomePage() {
   ];
 
   return (
-    <main className="min-h-screen w-full flex flex-col text-white bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className="container mx-auto px-4 py-16 flex-1 flex flex-col">
+    <main className="min-h-screen w-full flex flex-col text-white bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+      <CosmicParticles />
+      <div className="container mx-auto px-4 py-16 flex-1 flex flex-col relative" style={{ zIndex: 1 }}>
         {/* Hero Section */}
         <div className="text-center mb-16 mt-8">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
