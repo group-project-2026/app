@@ -1,0 +1,165 @@
+{
+  "navigation": {
+    "home": "Home",
+    "universeMap": "Universe Map",
+    "analytics": "Analytics",
+    "sources": "Sources",
+    "navigation": "Navigation",
+    "spaceNavigation": "Space Navigation",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "universeMap": {
+    "instructions": "Drag to orbit · Scroll to zoom · Right-drag to pan · Click a point for details",
+    "filters": "Filters",
+    "legend": "Legend",
+    "categories": {
+      "star": "Star",
+      "galaxy": "Galaxy",
+      "nebula": "Nebula",
+      "pulsar": "Pulsar",
+      "quasar": "Quasar",
+      "blackHole": "Black Hole",
+      "planet": "Planet",
+      "cluster": "Cluster"
+    }
+  },
+  "pointDetail": {
+    "rightAscension": "Right Ascension",
+    "declination": "Declination",
+    "distance": "Distance",
+    "magnitude": "Magnitude",
+    "discoveredBy": "Discovered by",
+    "description": "Description",
+    "observationNotes": "Observation Notes",
+    "spectralAnalysis": "Spectral Analysis",
+    "chartPlaceholder": "Chart placeholder — spectral energy distribution",
+    "angularPosition": "Angular Position",
+    "angularPlaceholder": "Placeholder — galactic coordinates, zenith angle, azimuth",
+    "fluxEnergy": "Flux & Energy",
+    "fluxPlaceholder": "Placeholder — flux vs energy plot, power-law fit"
+  },
+  "sources": {
+    "title": "Gamma-Ray Sources",
+    "description": "Browse and filter gamma-ray sources from various astronomical catalogs",
+    "filters": "Filters",
+    "filtersDescription": "Refine your search using the filters below",
+    "errorLoading": "Error loading sources: {{message}}",
+    "noResults": "No sources found. Try adjusting your filters.",
+    "backToSources": "← Back to Sources",
+    "sourceId": "Source ID: {{id}}",
+    "detailPlaceholder": "Detail page implementation coming soon...",
+    "columns": {
+      "sourceName": "Source Name",
+      "class": "Class",
+      "ra": "RA (°)",
+      "dec": "Dec (°)",
+      "glon": "GLON (°)",
+      "glat": "GLAT (°)",
+      "flux": "Flux (ph/cm²/s)",
+      "spectralIndex": "Spectral Index",
+      "significance": "Significance (σ)",
+      "unknown": "Unknown"
+    },
+    "filterLabels": {
+      "search": "Search",
+      "searchPlaceholder": "Search by source name...",
+      "sourceClass": "Source Class",
+      "raRange": "RA Range (°)",
+      "decRange": "Dec Range (°)",
+      "minFlux": "Min Flux (ph/cm²/s)",
+      "fluxPlaceholder": "e.g., 1e-9",
+      "minSignificance": "Min Significance (σ)",
+      "sigPlaceholder": "e.g., 5"
+    },
+    "classes": {
+      "pulsar": "Pulsar",
+      "blLac": "BL Lac",
+      "fsrq": "Flat Spectrum Radio Quasar",
+      "agn": "Active Galactic Nucleus",
+      "unknown": "Unknown",
+      "binary": "Binary System",
+      "hmb": "High-Mass Binary",
+      "snr": "Supernova Remnant"
+    }
+  },
+  "dataTable": {
+    "loading": "Loading...",
+    "noResults": "No results found.",
+    "selectedCount": "{{count}} selected",
+    "selectPlaceholder": "Select...",
+    "searchPlaceholder": "Search...",
+    "activeFilters": "Active filters:",
+    "filterBadge": "{{label}}: {{value}}",
+    "clearAll": "Clear all",
+    "rowsPerPage": "Rows per page",
+    "showingResults": "Showing {{start}}-{{end}} of {{total}}",
+    "noResultsPagination": "No results",
+    "goToFirstPage": "Go to first page",
+    "goToPreviousPage": "Go to previous page",
+    "goToNextPage": "Go to next page",
+    "goToLastPage": "Go to last page"
+  },
+  "analytics": {
+    "title": "Catalog Analytics",
+    "description": "Analytics for Fermi, HAWC, LHAASO, NED, TeVCat and MAGIC catalogs: emission, statistical significance, catalog comparisons, separate detectability section and groupings and aggregations for analysis.",
+    "analysisScope": "Analysis Scope",
+    "analysisScopeDescription": "Select catalogs and aggregation level for the comparison section.",
+    "groupingsTitle": "Groupings and Aggregations for Analysis",
+    "groupingsDescription": "Current grouping: {{grouping}}. Aggregate table for the selected analytical dimension.",
+    "groupingOptions": {
+      "catalog": "Catalog",
+      "year": "Year",
+      "energyBand": "Energy Band",
+      "skyRegion": "Sky Region",
+      "sourceType": "Source Type"
+    },
+    "tableColumns": {
+      "group": "Group",
+      "samples": "Samples",
+      "avgEmission": "Avg emission",
+      "medianEmission": "Median emission",
+      "avgSigma": "Avg sigma",
+      "peakSigma": "Peak sigma",
+      "avgDetectability": "Avg detectability",
+      "highDetectabilityPercent": "High detectability %"
+    },
+    "metrics": {
+      "samples": "Samples",
+      "avgEmission": "Average emission",
+      "avgSigma": "Average sigma",
+      "highDetectability": "High detectability"
+    },
+    "groupingLabel": "Grouping for aggregation table",
+    "emissionTrend": "Emission Plots: Annual Trend",
+    "emissionTrendDescription": "Average emission flux for selected catalogs over time.",
+    "emissionComparison": "Emission Plots: Average vs Maximum",
+    "emissionComparisonDescription": "Comparison of emission levels between catalogs.",
+    "radarMetrics": {
+      "emissionIndex": "Emission index",
+      "significanceIndex": "Significance index",
+      "detectabilityIndex": "Detectability index",
+      "highDetectabilityShare": "High detectability share"
+    },
+    "sigmaLabels": {
+      "avgSigma": "Average sigma",
+      "percentile95": "95 percentile sigma",
+      "maxSigma": "Maximum sigma"
+    },
+    "detectabilityCategories": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "emissionLabels": {
+      "avgEmission": "Average emission",
+      "peakEmission": "Peak emission"
+    },
+    "significancePlot": "Statistical Significance Plot",
+    "significancePlotDescription": "Average, 95th percentile and maximum detection (sigma) per catalog.",
+    "catalogComparison": "Catalog Comparisons",
+    "catalogComparisonDescription": "Radar comparing emission, significance and detectability after normalization.",
+    "detectabilitySection": "Detectability: Separate Comparison Section",
+    "detectabilitySectionDescription": "Distribution of low/medium/high detectability for each catalog."
+  }
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -16,8 +17,8 @@ import type {
   FilterState
 } from "@/components/data-table-types";
 import { useSourcesData } from "./useSourcesData";
-import { sourcesColumns } from "./sourcesColumns";
-import { sourcesFilters } from "./sourcesFilters";
+import { getSourcesColumns } from "./sourcesColumns";
+import { getSourcesFilters } from "./sourcesFilters";
 import type { Source, SourceClass, SourcesQueryParams } from "./types";
 
 const isSourceClass = (value: unknown): value is SourceClass =>
@@ -40,6 +41,7 @@ const asSourceClassArray = (value: unknown): SourceClass[] | undefined => {
 
 export function SourcesPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Pagination state
   const [pagination, setPagination] = useState<PaginationState>({
@@ -95,24 +97,23 @@ export function SourcesPage() {
       <div className="container mx-auto py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Gamma-Ray Sources
+            {t("sources.title")}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Browse and filter gamma-ray sources from various astronomical
-            catalogs
+            {t("sources.description")}
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Filters</CardTitle>
+            <CardTitle>{t("sources.filters")}</CardTitle>
             <CardDescription>
-              Refine your search using the filters below
+              {t("sources.filtersDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <DataTableFilters
-              filters={sourcesFilters}
+              filters={getSourcesFilters(t)}
               filterState={filterState}
               onFilterChange={handleFilterChange}
               onClearFilters={handleClearFilters}
@@ -124,7 +125,7 @@ export function SourcesPage() {
           <Card className="border-destructive">
             <CardContent className="pt-6">
               <p className="text-destructive">
-                Error loading sources: {error.message}
+                {t("sources.errorLoading", { message: error.message })}
               </p>
             </CardContent>
           </Card>
@@ -133,13 +134,13 @@ export function SourcesPage() {
         <Card>
           <CardContent className="pt-6">
             <DataTable
-              columns={sourcesColumns}
+              columns={getSourcesColumns(t)}
               data={data?.data || []}
               sorting={sorting}
               onSortChange={setSorting}
               onRowClick={handleRowClick}
               isLoading={isLoading}
-              emptyMessage="No sources found. Try adjusting your filters."
+              emptyMessage={t("sources.noResults")}
             />
             {data && (
               <DataTablePagination

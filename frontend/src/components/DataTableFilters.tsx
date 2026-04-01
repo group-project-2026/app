@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export function DataTableFilters({
   onFilterChange,
   onClearFilters
 }: DataTableFiltersProps) {
+  const { t } = useTranslation();
   const getArrayFilterValue = (value: unknown): string[] =>
     Array.isArray(value)
       ? value.filter((item): item is string => typeof item === "string")
@@ -110,15 +112,15 @@ export function DataTableFilters({
                   className="justify-start h-9 font-normal"
                 >
                   {selectedValues.length > 0
-                    ? `${selectedValues.length} selected`
-                    : "Select..."}
+                    ? t("dataTable.selectedCount", { count: selectedValues.length })
+                    : t("dataTable.selectPlaceholder")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-50 p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Search..." />
+                  <CommandInput placeholder={t("dataTable.searchPlaceholder")} />
                   <CommandList>
-                    <CommandEmpty>No results found.</CommandEmpty>
+                    <CommandEmpty>{t("dataTable.noResults")}</CommandEmpty>
                     <CommandGroup>
                       {filter.options?.map((option) => (
                         <CommandItem
@@ -222,13 +224,13 @@ export function DataTableFilters({
       {/* Active filter badges and clear button */}
       {activeFilters.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
+          <span className="text-sm text-muted-foreground">{t("dataTable.activeFilters")}</span>
           {activeFilters.map(([key, value]) => {
             const filter = filters.find(
               (f) => f.id === key || key.startsWith(f.field)
             );
             const displayValue = Array.isArray(value)
-              ? `${value.length} selected`
+              ? t("dataTable.selectedCount", { count: value.length })
               : typeof value === "number"
                 ? value.toFixed(2)
                 : String(value);
@@ -249,7 +251,7 @@ export function DataTableFilters({
             onClick={onClearFilters}
             className="h-7 px-2 text-xs"
           >
-            Clear all
+            {t("dataTable.clearAll")}
           </Button>
         </div>
       )}
