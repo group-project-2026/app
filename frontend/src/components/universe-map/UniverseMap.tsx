@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { CelestialSphere } from "./CelestialSphere";
@@ -14,6 +15,7 @@ import { CATEGORY_META } from "./types";
 const ALL_CATEGORIES = new Set(Object.keys(CATEGORY_META) as CosmicCategory[]);
 
 export function UniverseMap() {
+  const { t } = useTranslation();
   const [selectedPoint, setSelectedPoint] = useState<CosmicPoint | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<CosmicCategory>>(
     new Set(ALL_CATEGORIES)
@@ -95,8 +97,7 @@ export function UniverseMap() {
         />
 
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 text-[11px] text-white/25 select-none pointer-events-none whitespace-nowrap">
-          Drag to orbit · Scroll to zoom · Right-drag to pan · Click a point for
-          details
+          {t("universeMap.instructions")}
         </div>
       </div>
       {panelOpen && (

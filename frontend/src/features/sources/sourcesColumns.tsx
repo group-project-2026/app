@@ -1,10 +1,11 @@
+import type { TFunction } from "i18next";
 import type { ColumnDef } from "@/components/data-table-types";
 import type { Source, SourceClass } from "./types";
-import { SOURCE_CLASS_LABELS } from "./types";
 import { Badge } from "@/components/ui/badge";
 
 const isSourceClass = (value: unknown): value is SourceClass =>
-  typeof value === "string" && value in SOURCE_CLASS_LABELS;
+  typeof value === "string" &&
+  ["PSR", "BLL", "FSRQ", "AGN", "UNK", "BIN", "HMB", "SNR"].includes(value);
 
 const formatFixed = (value: unknown, digits: number): string =>
   typeof value === "number" ? value.toFixed(digits) : "-";
@@ -12,59 +13,73 @@ const formatFixed = (value: unknown, digits: number): string =>
 const formatExponential = (value: unknown, digits: number): string =>
   typeof value === "number" ? value.toExponential(digits) : "-";
 
-export const sourcesColumns: ColumnDef<Source>[] = [
+const getSourceClassLabel = (value: SourceClass, t: TFunction): string => {
+  const labels: Record<SourceClass, string> = {
+    PSR: t("sources.classes.pulsar"),
+    BLL: t("sources.classes.blLac"),
+    FSRQ: t("sources.classes.fsrq"),
+    AGN: t("sources.classes.agn"),
+    UNK: t("sources.classes.unknown"),
+    BIN: t("sources.classes.binary"),
+    HMB: t("sources.classes.hmb"),
+    SNR: t("sources.classes.snr")
+  };
+  return labels[value];
+};
+
+export const getSourcesColumns = (t: TFunction): ColumnDef<Source>[] => [
   {
     id: "name",
-    header: "Source Name",
+    header: t("sources.columns.sourceName"),
     accessorKey: "name",
     sortable: true,
     className: "font-medium"
   },
   {
     id: "sourceClass",
-    header: "Class",
+    header: t("sources.columns.class"),
     accessorKey: "sourceClass",
     cell: ({ value }) => (
       <Badge
         variant="outline"
         className="border-slate-500/80 bg-slate-800/70 text-slate-100"
       >
-        {isSourceClass(value) ? SOURCE_CLASS_LABELS[value] : "Unknown"}
+        {isSourceClass(value) ? getSourceClassLabel(value, t) : t("sources.columns.unknown")}
       </Badge>
     ),
     sortable: false
   },
   {
     id: "ra",
-    header: "RA (°)",
+    header: t("sources.columns.ra"),
     accessorKey: "ra",
     cell: ({ value }) => formatFixed(value, 2),
     sortable: true
   },
   {
     id: "dec",
-    header: "Dec (°)",
+    header: t("sources.columns.dec"),
     accessorKey: "dec",
     cell: ({ value }) => formatFixed(value, 2),
     sortable: true
   },
   {
     id: "glon",
-    header: "GLON (°)",
+    header: t("sources.columns.glon"),
     accessorKey: "glon",
     cell: ({ value }) => formatFixed(value, 2),
     sortable: true
   },
   {
     id: "glat",
-    header: "GLAT (°)",
+    header: t("sources.columns.glat"),
     accessorKey: "glat",
     cell: ({ value }) => formatFixed(value, 2),
     sortable: true
   },
   {
     id: "flux",
-    header: "Flux (ph/cm²/s)",
+    header: t("sources.columns.flux"),
     accessorKey: "flux",
     cell: ({ value }) => formatExponential(value, 2),
     sortable: true,
@@ -72,14 +87,14 @@ export const sourcesColumns: ColumnDef<Source>[] = [
   },
   {
     id: "spectralIndex",
-    header: "Spectral Index",
+    header: t("sources.columns.spectralIndex"),
     accessorKey: "spectralIndex",
     cell: ({ value }) => formatFixed(value, 2),
     sortable: true
   },
   {
     id: "significance",
-    header: "Significance (σ)",
+    header: t("sources.columns.significance"),
     accessorKey: "significance",
     cell: ({ value }) => formatFixed(value, 1),
     sortable: true

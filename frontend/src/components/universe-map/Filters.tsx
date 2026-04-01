@@ -1,7 +1,8 @@
+import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CATEGORY_META, type CosmicCategory } from "./types";
+import { getCategoryMeta, type CosmicCategory } from "./types";
 
-const CATEGORIES = Object.keys(CATEGORY_META) as CosmicCategory[];
+const ALL_CATEGORIES: CosmicCategory[] = ["star", "galaxy", "nebula", "pulsar", "quasar", "black-hole", "planet", "cluster"];
 
 interface Props {
   activeCategories: Set<CosmicCategory>;
@@ -9,13 +10,16 @@ interface Props {
 }
 
 export function Filters({ activeCategories, onToggle }: Props) {
+  const { t } = useTranslation();
+  const categoryMeta = getCategoryMeta(t);
+
   return (
     <div className="absolute top-4 right-4 z-10 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl p-4 space-y-2.5">
       <h3 className="text-[11px] uppercase tracking-widest text-white/40 font-semibold mb-2">
-        Filters
+        {t("universeMap.filters")}
       </h3>
-      {CATEGORIES.map((cat) => {
-        const meta = CATEGORY_META[cat];
+      {ALL_CATEGORIES.map((cat) => {
+        const meta = categoryMeta[cat];
         const checked = activeCategories.has(cat);
         return (
           <label

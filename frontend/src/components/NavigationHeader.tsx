@@ -1,21 +1,24 @@
 import { useEffect, useState, type AnimationEvent } from "react";
 import { X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 type MobileMenuState = "closed" | "opening" | "open" | "closing";
 
 export function NavigationHeader() {
   const location = useLocation();
+  const { t } = useTranslation();
   const [mobileMenuState, setMobileMenuState] =
     useState<MobileMenuState>("closed");
 
   const links = [
-    { to: "/", label: "Home" },
-    { to: "/universe-map", label: "Universe Map" },
-    { to: "/source-analytics", label: "Analityka" },
-    { to: "/sources", label: "Sources" }
+    { to: "/", label: t("navigation.home") },
+    { to: "/universe-map", label: t("navigation.universeMap") },
+    { to: "/source-analytics", label: t("navigation.analytics") },
+    { to: "/sources", label: t("navigation.sources") }
   ];
 
   const isActive = (path: string) => {
@@ -26,7 +29,7 @@ export function NavigationHeader() {
   };
 
   const activeLinkLabel =
-    links.find((link) => isActive(link.to))?.label ?? "Navigation";
+    links.find((link) => isActive(link.to))?.label ?? t("navigation.navigation");
 
   const isMobileMenuExpanded =
     mobileMenuState === "opening" || mobileMenuState === "open";
@@ -101,7 +104,7 @@ export function NavigationHeader() {
             {activeLinkLabel}
           </span>
 
-          <nav className="hidden md:flex md:gap-3 md:text-sm">
+          <nav className="hidden md:flex md:gap-3 md:text-sm md:flex-1">
             {links.map((link) => (
               <Link
                 key={link.to}
@@ -118,6 +121,10 @@ export function NavigationHeader() {
             ))}
           </nav>
 
+          <div className="hidden md:block">
+            <LanguageSwitcher />
+          </div>
+
           <button
             type="button"
             className={cn(
@@ -125,7 +132,7 @@ export function NavigationHeader() {
               isMobileMenuExpanded &&
                 "border border-sky-300/70 bg-sky-300/15 text-white"
             )}
-            aria-label={isMobileMenuExpanded ? "Close menu" : "Open menu"}
+            aria-label={isMobileMenuExpanded ? t("navigation.closeMenu") : t("navigation.openMenu")}
             aria-expanded={isMobileMenuExpanded}
             aria-controls="mobile-nav-menu"
             onClick={toggleMobileMenu}
@@ -153,13 +160,13 @@ export function NavigationHeader() {
           <div className="mobile-cosmic-overlay__content">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium tracking-wide text-slate-200">
-                Space Navigation
+                {t("navigation.spaceNavigation")}
               </span>
               <button
                 type="button"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-sky-300/70 bg-sky-300/15 text-white transition-colors hover:bg-sky-300/20"
                 onClick={closeMobileMenu}
-                aria-label="Close menu"
+                aria-label={t("navigation.closeMenu")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -182,6 +189,10 @@ export function NavigationHeader() {
                 </Link>
               ))}
             </nav>
+
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <LanguageSwitcher />
+            </div>
           </div>
         </div>
       )}

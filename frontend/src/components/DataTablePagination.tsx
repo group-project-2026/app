@@ -4,6 +4,7 @@ import {
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon
 } from "@radix-ui/react-icons";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -20,6 +21,7 @@ export function DataTablePagination({
   total,
   pageSizeOptions = [10, 25, 50, 100]
 }: DataTablePaginationProps) {
+  const { t } = useTranslation();
   const totalPages = Math.ceil(total / pagination.pageSize);
   const startIndex = (pagination.page - 1) * pagination.pageSize + 1;
   const endIndex = Math.min(pagination.page * pagination.pageSize, total);
@@ -76,7 +78,7 @@ export function DataTablePagination({
     <div className="flex items-center justify-between px-2 py-4">
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Rows per page</p>
+          <p className="text-sm font-medium">{t("dataTable.rowsPerPage")}</p>
           <Select
             value={String(pagination.pageSize)}
             onValueChange={handlePageSizeChange}
@@ -96,10 +98,10 @@ export function DataTablePagination({
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
           {total > 0 ? (
             <>
-              Showing {startIndex}-{endIndex} of {total}
+              {t("dataTable.showingResults", { start: startIndex, end: endIndex, total })}
             </>
           ) : (
-            "No results"
+            t("dataTable.noResultsPagination")
           )}
         </div>
       </div>
@@ -112,7 +114,7 @@ export function DataTablePagination({
           onClick={() => handlePageChange(1)}
           disabled={pagination.page === 1}
         >
-          <span className="sr-only">Go to first page</span>
+          <span className="sr-only">{t("dataTable.goToFirstPage")}</span>
           <DoubleArrowLeftIcon className="h-4 w-4" />
         </Button>
 
@@ -123,7 +125,7 @@ export function DataTablePagination({
           onClick={() => handlePageChange(pagination.page - 1)}
           disabled={pagination.page === 1}
         >
-          <span className="sr-only">Go to previous page</span>
+          <span className="sr-only">{t("dataTable.goToPreviousPage")}</span>
           <ChevronLeftIcon className="h-4 w-4" />
         </Button>
 
@@ -154,7 +156,7 @@ export function DataTablePagination({
           onClick={() => handlePageChange(pagination.page + 1)}
           disabled={pagination.page >= totalPages}
         >
-          <span className="sr-only">Go to next page</span>
+          <span className="sr-only">{t("dataTable.goToNextPage")}</span>
           <ChevronRightIcon className="h-4 w-4" />
         </Button>
 
@@ -165,7 +167,7 @@ export function DataTablePagination({
           onClick={() => handlePageChange(totalPages)}
           disabled={pagination.page >= totalPages}
         >
-          <span className="sr-only">Go to last page</span>
+          <span className="sr-only">{t("dataTable.goToLastPage")}</span>
           <DoubleArrowRightIcon className="h-4 w-4" />
         </Button>
       </div>
