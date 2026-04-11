@@ -16,4 +16,6 @@ To start the app:
    docker compose up -d --build
 ```
 
-Frontend will be available on `http://localhost:3000`
+Frontend will be available on `http://localhost:3000` and backend on `http://localhost:8000`
+
+Admin panel is available on `http://localhost:8000/admin`. To create admin user paste `docker exec -it backend python manage.py createsuperuser` into terminal and fill out the form.
