@@ -13,6 +13,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml poetry.lock ./
 
-RUN pip install poetry && poetry install --no-root
-
 COPY . .
+
+RUN pip install --upgrade pip
+RUN pip install poetry
+RUN apt-get update \
+    && apt-get -y install libpq-dev gcc
+RUN pip install psycopg2-binary
+RUN pip install websockets
+RUN poetry install --no-root
