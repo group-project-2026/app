@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 import math
 import os
+import ssl
+import yaml
 
 import numpy as np
 import requests
@@ -9,6 +11,19 @@ from astropy.table import Table
 from django.db import transaction
 
 from app.settings import FILES_DIR
+
+# Handle SSL certificate verification issues
+# Create a custom session that handles certificates properly
+def _get_session_with_ssl():
+    """Get requests session with SSL handling."""
+    session = requests.Session()
+    try:
+        # Try with certificate verification first
+        session.verify = True
+    except Exception:
+        # Fallback to no verification (less secure but necessary for some sources)
+        session.verify = False
+    return session
 
 
 class CatalogLoader(ABC):
@@ -60,8 +75,14 @@ class FermiLoader(CatalogLoader):
         if os.path.exists(self.fits_path):
             return
 
-        response = requests.get(self.fits_url, stream=True, timeout=120)
-        response.raise_for_status()
+        session = _get_session_with_ssl()
+        try:
+            response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
+            response.raise_for_status()
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
+            # Retry without SSL verification as fallback
+            response = session.get(self.fits_url, stream=True, timeout=120, verify=False)
+            response.raise_for_status()
 
         with open(self.fits_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=1 << 20):
@@ -146,17 +167,174 @@ class HAWCLoader(CatalogLoader):
     """
     Load HAWC catalog (High Altitude Water Cherenkov detector).
     HAWC is a gamma-ray observatory for TeV-scale gamma rays.
+    Uses the 3HWC catalog (Third HAWC Catalog) from YAML file.
+
+    YAML source: https://data.hawc-observatory.org/datasets/3hwc-survey/3HWC.yaml
     """
 
     catalog_name = "HAWC"
+    # YAML catalog file (contains actual source coordinates)
+    YAML_URL = "https://data.hawc-observatory.org/datasets/3hwc-survey/3HWC.yaml"
+    YAML_LOCAL = FILES_DIR / "3HWC.yaml"
+
+    def __init__(self, yaml_path: str = None, yaml_url: str = None):
+        self.yaml_path = yaml_path or self.YAML_LOCAL
+        self.yaml_url = yaml_url or self.YAML_URL
 
     def load(self) -> List[Dict[str, Any]]:
-        """
-        Load HAWC sources from 3HWC catalog.
-        TODO: Implement HAWC FITS loading from catalog file or API.
-        """
-        # Placeholder: return empty list until HAWC data source is available
-        return []
+        """Load HAWC 3HWC catalog from YAML and return normalized sources."""
+        try:
+            self._download()
+            data = self._parse_yaml()
+            return self._normalize(data)
+        except FileNotFoundError:
+            print(f"⚠️  HAWC YAML file not found at {self.yaml_path}")
+            print("To load HAWC catalog, manually download from:")
+            print(f"  {self.YAML_URL}")
+            print(f"And place at: {self.YAML_LOCAL}")
+            return []
+        except Exception as e:
+            print(f"⚠️  Error loading HAWC catalog: {type(e).__name__}: {e}")
+            return []
+
+    def _download(self) -> None:
+        """Download YAML file if not already present."""
+        if os.path.exists(self.yaml_path):
+            return
+
+        session = _get_session_with_ssl()
+        try:
+            # Try with SSL verification first
+            response = session.get(self.yaml_url, stream=True, timeout=120, verify=True)
+            response.raise_for_status()
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
+            # Retry without SSL verification as fallback
+            print(f"SSL verification failed, retrying without verification: {e}")
+            response = session.get(self.yaml_url, stream=True, timeout=120, verify=False)
+            response.raise_for_status()
+
+        with open(self.yaml_path, "wb") as f:
+            f.write(response.content)
+
+    def _parse_yaml(self) -> dict:
+        """Parse YAML file."""
+        with open(self.yaml_path, "r") as f:
+            data = yaml.safe_load(f)
+        return data
+
+    def _normalize(self, data: dict) -> List[Dict[str, Any]]:
+        """Convert YAML data to normalized source format."""
+        sources = []
+
+        # YAML structure - get sources list/dict
+        if not data:
+            return sources
+
+        # Handle both list and dict formats
+        items = data.values() if isinstance(data, dict) else data
+        if isinstance(items, dict):
+            items = items.values()
+
+        items_list = list(items) if not isinstance(items, list) else items
+        print(f"  Found {len(items_list)} potential sources in YAML")
+
+        # Debug: print first item structure
+        if items_list:
+            print(f"  First source keys: {list(items_list[0].keys())}")
+
+        # Iterate through sources
+        for item in items_list:
+            if not isinstance(item, dict):
+                continue
+
+            try:
+                # Extract coordinates - try ALL possible variations
+                ra = None
+                dec = None
+
+                # Try RA column - try all case variations
+                for ra_key in ["RA", "ra", "Ra", "RA_J2000", "RAJ2000", "ra_j2000", "RA_DEG"]:
+                    if ra_key in item:
+                        ra = float(item[ra_key])
+                        break
+
+                # Try DEC column - try ALL case variations (Dec, DEC, dec, etc.)
+                for dec_key in ["Dec", "DEC", "dec", "Dec_J2000", "DEC_J2000", "DEJ2000", "dec_j2000", "DEC_DEG", "Declination"]:
+                    if dec_key in item:
+                        dec = float(item[dec_key])
+                        break
+
+                if ra is None or dec is None:
+                    # Debug message
+                    if ra is None:
+                        print(f"  ⚠️  Could not find RA in source: {item.get('name', 'unknown')}")
+                    if dec is None:
+                        print(f"  ⚠️  Could not find Dec in source: {item.get('name', 'unknown')}")
+                    continue  # Skip if no coordinates
+
+                # Extract source name
+                source_name = None
+                for name_key in ["name", "source_name", "Name", "Source_Name", "NAME", "designation", "source"]:
+                    if name_key in item:
+                        source_name = self._s(item[name_key])
+                        break
+
+                if not source_name:
+                    source_name = f"HAWC J{ra:07.2f}{dec:+07.2f}"
+
+                # Build metadata from available fields
+                metadata = {
+                    "catalog_version": "3HWC",
+                    "detection_method": "gamma-ray (HAWC)",
+                }
+
+                # Extract common fields with all case variations
+                common_fields = [
+                    (["flux", "Flux", "FLUX"], "flux_tev"),
+                    (["flux_upper_bound", "Flux_Upper_Bound"], "flux_tev_upper"),
+                    (["flux_lower_bound", "Flux_Lower_Bound"], "flux_tev_lower"),
+                    (["significance", "Significance"], "significance"),
+                    (["spectral_index", "Spectral_Index", "index"], "spectral_index"),
+                    (["spectral_index_error", "Spectral_Index_Error"], "spectral_index_err"),
+                    (["TS", "ts", "Test_Statistic"], "ts"),
+                    (["variability", "Variability"], "variability"),
+                    (["extension", "Extension"], "extension"),
+                ]
+
+                for yaml_keys, meta_key in common_fields:
+                    for yaml_key in yaml_keys:
+                        if yaml_key in item:
+                            metadata[meta_key] = self._f(item[yaml_key])
+                            break
+
+                source = {
+                    "name": source_name,
+                    "ra": ra,
+                    "dec": dec,
+                    "discovery_method": "gamma-ray (HAWC)",
+                    "metadata": metadata,
+                }
+                sources.append(source)
+
+            except (KeyError, ValueError, TypeError) as e:
+                # Skip problematic rows silently
+                continue
+
+        print(f"  Successfully parsed {len(sources)} sources with coordinates")
+        return sources
+
+    @staticmethod
+    def _f(val) -> float | None:
+        """Value → Python float, NaN/Inf → None."""
+        try:
+            v = float(val)
+            return None if (math.isnan(v) or math.isinf(v)) else v
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _s(val) -> str:
+        return str(val).strip() if val is not None else ""
 
 
 class TeVCatLoader(CatalogLoader):

@@ -17,10 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     postgresql-client \
     netcat-openbsd \
+    ca-certificates \
+    curl \
     gcc \
     g++ \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Install Poetry and Python dependencies
 COPY pyproject.toml poetry.lock* ./
