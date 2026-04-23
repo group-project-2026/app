@@ -2,13 +2,10 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 import math
 import os
-import ssl
 import yaml
 
-import numpy as np
 import requests
 from astropy.table import Table
-from django.db import transaction
 
 from app.settings import FILES_DIR
 
@@ -250,7 +247,7 @@ class LHASOLoader(CatalogLoader):
                     if flux_col in table.colnames:
                         try:
                             metadata["flux_tev"] = self._f(row[flux_col])
-                        except:
+                        except Exception:
                             pass
 
                 # Extract spectral index
@@ -258,7 +255,7 @@ class LHASOLoader(CatalogLoader):
                     if spec_col in table.colnames:
                         try:
                             metadata["spectral_index"] = self._f(row[spec_col])
-                        except:
+                        except Exception:
                             pass
 
                 # Extract significance
@@ -266,7 +263,7 @@ class LHASOLoader(CatalogLoader):
                     if sig_col in table.colnames:
                         try:
                             metadata["significance"] = self._f(row[sig_col])
-                        except:
+                        except Exception:
                             pass
 
                 # Extract extension/size
@@ -274,7 +271,7 @@ class LHASOLoader(CatalogLoader):
                     if ext_col in table.colnames:
                         try:
                             metadata["extension_deg"] = self._f(row[ext_col])
-                        except:
+                        except Exception:
                             pass
 
                 sources.append({
@@ -457,7 +454,7 @@ class HAWCLoader(CatalogLoader):
                 }
                 sources.append(source)
 
-            except (KeyError, ValueError, TypeError) as e:
+            except (KeyError, ValueError, TypeError, Exception):
                 # Skip problematic rows silently
                 continue
 

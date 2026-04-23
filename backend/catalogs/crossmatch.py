@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
