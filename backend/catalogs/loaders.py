@@ -90,7 +90,6 @@ class FermiLoader(CatalogLoader):
 
     def _normalize(self, table: Table) -> List[Dict[str, Any]]:
         """Convert FITS table to normalized source format."""
-        cols = set(table.colnames)
         sources = []
 
         for row in table:
