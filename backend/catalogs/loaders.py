@@ -150,17 +150,158 @@ class LHASOLoader(CatalogLoader):
     """
     Load LHAASO catalog (Large High Altitude Air Shower Observatory).
     LHAASO is a gamma-ray observatory for TeV energy range.
+
+    Loads from gammapy-data repository: 1LHAASO_catalog.fits
+    Catalog reference: https://arxiv.org/abs/2305.17030 (LHAASO DR1)
     """
 
     catalog_name = "LHAASO"
+    FITS_URL = "https://raw.githubusercontent.com/gammapy/gammapy-data/main/catalogs/1LHAASO_catalog.fits"
+    FITS_LOCAL = FILES_DIR / "1LHAASO_catalog.fits"
+
+    def __init__(self, fits_path: str = None, fits_url: str = None):
+        self.fits_path = fits_path or self.FITS_LOCAL
+        self.fits_url = fits_url or self.FITS_URL
 
     def load(self) -> List[Dict[str, Any]]:
-        """
-        Load LHAASO sources.
-        TODO: Implement LHAASO FITS/ASCII loading from catalog file or API.
-        """
-        # Placeholder: return empty list until LHAASO data source is available
-        return []
+        """Load LHAASO catalog from FITS file."""
+        try:
+            self._download()
+            table = self._parse()
+            return self._normalize(table)
+        except FileNotFoundError:
+            print(f"⚠️  LHAASO FITS file not found at {self.fits_path}")
+            print("To load LHAASO catalog, manually download from:")
+            print(f"  {self.FITS_URL}")
+            print(f"And place at: {self.FITS_LOCAL}")
+            return []
+        except Exception as e:
+            print(f"⚠️  Error loading LHAASO catalog: {type(e).__name__}: {e}")
+            return []
+
+    def _download(self) -> None:
+        """Download FITS file if not already present."""
+        if os.path.exists(self.fits_path):
+            return
+
+        session = _get_session_with_ssl()
+        try:
+            # Try with SSL verification first
+            response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
+            response.raise_for_status()
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
+            # Retry without SSL verification as fallback
+            print(f"SSL verification failed, retrying without verification: {e}")
+            response = session.get(self.fits_url, stream=True, timeout=120, verify=False)
+            response.raise_for_status()
+
+        with open(self.fits_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1 << 20):
+                f.write(chunk)
+
+    def _parse(self) -> Table:
+        """Parse FITS file."""
+        return Table.read(self.fits_path, hdu=1)
+
+    def _normalize(self, table: Table) -> List[Dict[str, Any]]:
+        """Convert FITS table to normalized source format."""
+        sources = []
+
+        print(f"  Found {len(table)} sources in LHAASO FITS catalog")
+
+        for i, row in enumerate(table):
+            try:
+                # Extract coordinates - FITS typically uses RA/DEC or RAJ2000/DEJ2000
+                ra = None
+                dec = None
+
+                # Try different column name variations
+                for ra_col in ["RA", "ra", "RAJ2000", "RA_J2000"]:
+                    if ra_col in table.colnames:
+                        ra = float(row[ra_col])
+                        break
+
+                for dec_col in ["DEC", "dec", "DEJ2000", "DE_J2000", "DECJ2000", "DEC_J2000"]:
+                    if dec_col in table.colnames:
+                        dec = float(row[dec_col])
+                        break
+
+                if ra is None or dec is None:
+                    continue
+
+                # Extract source name
+                source_name = None
+                for name_col in ["Source_Name", "source_name", "NAME", "name"]:
+                    if name_col in table.colnames:
+                        source_name = str(row[name_col]).strip()
+                        break
+
+                if not source_name:
+                    source_name = f"LHAASO J{ra:07.2f}{dec:+07.2f}"
+
+                # Extract metadata from available columns
+                metadata = {
+                    "catalog_version": "LHAASO DR1",
+                    "detection_method": "gamma-ray (LHAASO)",
+                }
+
+                # Try to extract flux information
+                for flux_col in ["Flux_1TeV", "flux", "Flux", "integral_flux", "N0"]:
+                    if flux_col in table.colnames:
+                        try:
+                            metadata["flux_tev"] = self._f(row[flux_col])
+                        except:
+                            pass
+
+                # Extract spectral index
+                for spec_col in ["Spectral_Index", "spectral_index", "Index", "gamma"]:
+                    if spec_col in table.colnames:
+                        try:
+                            metadata["spectral_index"] = self._f(row[spec_col])
+                        except:
+                            pass
+
+                # Extract significance
+                for sig_col in ["Significance", "significance", "TS", "ts"]:
+                    if sig_col in table.colnames:
+                        try:
+                            metadata["significance"] = self._f(row[sig_col])
+                        except:
+                            pass
+
+                # Extract extension/size
+                for ext_col in ["Extension", "extension", "Size", "size", "Radius", "r39"]:
+                    if ext_col in table.colnames:
+                        try:
+                            metadata["extension_deg"] = self._f(row[ext_col])
+                        except:
+                            pass
+
+                sources.append({
+                    "name": source_name,
+                    "ra": ra,
+                    "dec": dec,
+                    "discovery_method": "gamma-ray (LHAASO)",
+                    "metadata": metadata,
+                })
+
+            except (KeyError, ValueError, TypeError) as e:
+                # Skip problematic rows
+                print(f"  Skipping row with error: {type(e).__name__}: {e}")
+                continue
+
+        print(f"  Successfully parsed {len(sources)} LHAASO sources")
+        return sources
+
+    @staticmethod
+    def _f(val) -> float | None:
+        """Value → Python float, NaN/Inf → None."""
+        try:
+            v = float(val)
+            return None if (math.isnan(v) or math.isinf(v)) else v
+        except (TypeError, ValueError, AttributeError):
+            return None
+
 
 
 class HAWCLoader(CatalogLoader):

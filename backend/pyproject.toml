@@ -15,6 +15,7 @@ numpy = "^2.4.4"
 astropy = "^7.2.0"
 requests = "^2.31.0"
 pyyaml = "^6.0"
+gammapy = "^1.0"
 gunicorn = "^21.2.0"
 
 [tool.poetry.group.dev.dependencies]

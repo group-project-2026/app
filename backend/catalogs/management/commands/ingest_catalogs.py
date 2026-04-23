@@ -12,7 +12,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--catalogs",
             nargs="+",
-            default=["FERMI"],
+            default=["FERMI", "LHAASO", "HAWC"],
             help="Catalog names to ingest (FERMI, LHAASO, HAWC, TEVCAT, NED)",
         )
         parser.add_argument(

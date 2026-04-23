@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies including PostGIS/GIS libraries
+# Install system dependencies including PostGIS/GIS libraries and scientific packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     libgeos-dev \
@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
     g++ \
+    gfortran \
+    build-essential \
     git \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates

@@ -13,12 +13,12 @@ class CrossMatchService:
     Uses GeoDjango spatial queries for efficient matching.
     """
 
-    def __init__(self, match_radius_deg: float = 0.1):
+    def __init__(self, match_radius_deg: float = 0.2):
         """
         Initialize cross-match service.
 
         Args:
-            match_radius_deg: Matching radius in degrees (default 0.1 deg = ~6 arcmin)
+            match_radius_deg: Matching radius in degrees (default 0.2 deg = ~12 arcmin)
         """
         self.match_radius_deg = match_radius_deg
 
@@ -153,6 +153,9 @@ class CrossMatchService:
                 if catalog_entry_count == 1:
                     created_count += 1
                 else:
+                    print(
+                        f"Matched existing source {source.unified_name} for {source_data.get('name', 'unknown')}"
+                    )
                     matched_count += 1
 
             except Exception as e:
