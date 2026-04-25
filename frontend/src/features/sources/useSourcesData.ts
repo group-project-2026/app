@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { SourcesQueryParams, SourcesResponse } from "./types";
-import { fetchSources } from "./mockSourcesData";
+import { fetchSources } from "./api";
 
 export function useSourcesData(params: SourcesQueryParams) {
   return useQuery<SourcesResponse, Error>({
