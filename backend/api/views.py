@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Count
 
 from sources.models import Source, CatalogEntry
 from catalogs.crossmatch import CrossMatchService
@@ -34,7 +34,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_serializer_class(self):
         """Use lightweight serializer for list views."""
-        if self.action == "list":
+        if self.action in ("list", "filter"):
             return SourceListSerializer
         return SourceDetailSerializer
 
@@ -93,38 +93,157 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         Search and filter sources.
 
         Parameters:
-        - catalog: Filter by catalog name (FERMI, LHAASO, HAWC, etc.)
+        - catalog: Repeatable catalog filter (e.g. ?catalog=FERMI&catalog=LHAASO)
         - search: Text search in source names
-        - min_flux: Filter by minimum flux (if in metadata)
-        - confidence: Filter by cross-match confidence (0.0-1.0)
+        - source_class: Repeatable source class filter (metadata source_class)
+        - ra_min, ra_max: RA bounds [0..360]
+        - dec_min, dec_max: DEC bounds [-90..90]
+        - confidence_min, confidence_max: Catalog-entry confidence bounds [0..1]
+        - significance_min, significance_max: Metadata significance bounds
+        - flux_min, flux_max: Metadata flux1000 bounds
+        - min_catalog_count: Minimum count of linked catalog entries
 
         Example: /api/sources/filter/?catalog=FERMI&search=3C279
         """
         queryset = self.queryset
+        params = request.query_params
+
+        def parse_float(name, min_value=None, max_value=None):
+            raw = params.get(name)
+            if raw in (None, ""):
+                return None, None
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                return None, Response(
+                    {"error": f"Invalid value for '{name}': expected float"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if min_value is not None and value < min_value:
+                return None, Response(
+                    {"error": f"'{name}' must be >= {min_value}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if max_value is not None and value > max_value:
+                return None, Response(
+                    {"error": f"'{name}' must be <= {max_value}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return value, None
 
         # Filter by catalog
-        catalog = request.query_params.get("catalog")
-        if catalog:
-            queryset = queryset.filter(primary_catalog=catalog)
+        catalogs = [catalog for catalog in params.getlist("catalog") if catalog]
+        if catalogs:
+            queryset = queryset.filter(primary_catalog__in=catalogs)
 
         # Text search
-        search = request.query_params.get("search")
+        search = params.get("search")
         if search:
             queryset = queryset.filter(
                 Q(unified_name__icontains=search)
                 | Q(catalog_entries__original_name__icontains=search)
             ).distinct()
 
-        # Filter by confidence
-        confidence_min = request.query_params.get("confidence_min")
-        if confidence_min:
+        # Filter by source class from catalog-entry metadata
+        source_classes = [
+            source_class for source_class in params.getlist("source_class") if source_class
+        ]
+        if source_classes:
+            source_class_filter = Q()
+            for source_class in source_classes:
+                source_class_filter |= Q(
+                    catalog_entries__metadata__source_class__iexact=source_class
+                )
+            queryset = queryset.filter(source_class_filter).distinct()
+
+        # Coordinate filters
+        ra_min, error = parse_float("ra_min", 0, 360)
+        if error:
+            return error
+        ra_max, error = parse_float("ra_max", 0, 360)
+        if error:
+            return error
+        dec_min, error = parse_float("dec_min", -90, 90)
+        if error:
+            return error
+        dec_max, error = parse_float("dec_max", -90, 90)
+        if error:
+            return error
+
+        if ra_min is not None:
+            queryset = queryset.filter(ra__gte=ra_min)
+        if ra_max is not None:
+            queryset = queryset.filter(ra__lte=ra_max)
+        if dec_min is not None:
+            queryset = queryset.filter(dec__gte=dec_min)
+        if dec_max is not None:
+            queryset = queryset.filter(dec__lte=dec_max)
+
+        # Confidence filters
+        confidence_min, error = parse_float("confidence_min", 0, 1)
+        if error:
+            return error
+        confidence_max, error = parse_float("confidence_max", 0, 1)
+        if error:
+            return error
+        if confidence_min is not None and confidence_max is not None:
+            if confidence_min > confidence_max:
+                return Response(
+                    {"error": "'confidence_min' must be <= 'confidence_max'"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if confidence_min is not None:
+            queryset = queryset.filter(catalog_entries__confidence__gte=confidence_min)
+        if confidence_max is not None:
+            queryset = queryset.filter(catalog_entries__confidence__lte=confidence_max)
+
+        # Metadata numeric filters
+        significance_min, error = parse_float("significance_min")
+        if error:
+            return error
+        significance_max, error = parse_float("significance_max")
+        if error:
+            return error
+        flux_min, error = parse_float("flux_min")
+        if error:
+            return error
+        flux_max, error = parse_float("flux_max")
+        if error:
+            return error
+
+        if significance_min is not None:
+            queryset = queryset.filter(
+                catalog_entries__metadata__significance__gte=significance_min
+            )
+        if significance_max is not None:
+            queryset = queryset.filter(
+                catalog_entries__metadata__significance__lte=significance_max
+            )
+        if flux_min is not None:
+            queryset = queryset.filter(catalog_entries__metadata__flux1000__gte=flux_min)
+        if flux_max is not None:
+            queryset = queryset.filter(catalog_entries__metadata__flux1000__lte=flux_max)
+
+        # Minimum number of catalog entries per source
+        min_catalog_count_raw = params.get("min_catalog_count")
+        if min_catalog_count_raw not in (None, ""):
             try:
-                confidence_min = float(confidence_min)
-                queryset = queryset.filter(
-                    catalog_entries__confidence__gte=confidence_min
-                ).distinct()
-            except ValueError:
-                pass
+                min_catalog_count = int(min_catalog_count_raw)
+            except (TypeError, ValueError):
+                return Response(
+                    {"error": "Invalid value for 'min_catalog_count': expected integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if min_catalog_count < 1:
+                return Response(
+                    {"error": "'min_catalog_count' must be >= 1"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.annotate(
+                catalog_count=Count("catalog_entries", distinct=True)
+            ).filter(catalog_count__gte=min_catalog_count)
+
+        queryset = queryset.distinct()
 
         # Apply pagination and ordering
         queryset = self.filter_queryset(queryset)
