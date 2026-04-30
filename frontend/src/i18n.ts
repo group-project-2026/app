@@ -3,26 +3,42 @@ import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import pl from "./locales/pl.json";
 
-const savedLanguage = localStorage.getItem("language") || "en";
+function getSavedLanguage(): string {
+  try {
+    return window.localStorage.getItem("language") || "en";
+  } catch {
+    return "en";
+  }
+}
+
+function persistLanguage(lng: string): void {
+  try {
+    window.localStorage.setItem("language", lng);
+  } catch {
+    // Ignore storage errors (e.g. blocked cookies/private mode restrictions).
+  }
+}
+
+const savedLanguage = getSavedLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
     en: {
-      translation: en,
+      translation: en
     },
     pl: {
-      translation: pl,
-    },
+      translation: pl
+    }
   },
   lng: savedLanguage,
   fallbackLng: "en",
   interpolation: {
-    escapeValue: false,
-  },
+    escapeValue: false
+  }
 });
 
 i18n.on("languageChanged", (lng) => {
-  localStorage.setItem("language", lng);
+  persistLanguage(lng);
 });
 
 export default i18n;

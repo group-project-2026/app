@@ -1,35 +1,65 @@
-// Source data types (gamma-ray sources from various catalogs)
+export type CatalogName = "FERMI" | "LHAASO" | "HAWC" | "TEVCAT" | "NED";
 
-export type SourceClass = 'PSR' | 'BLL' | 'FSRQ' | 'AGN' | 'UNK' | 'BIN' | 'HMB' | 'SNR';
+export interface CatalogEntry {
+  id: string;
+  catalog_name: CatalogName;
+  original_name: string;
+  metadata: Record<string, unknown>;
+  discovery_method: string;
+  confidence: number;
+  last_verified: string;
+}
 
 export interface Source {
   id: string;
-  name: string;
-  ra: number; // Right Ascension (degrees, 0-360)
-  dec: number; // Declination (degrees, -90 to 90)
-  glon: number; // Galactic longitude (degrees, 0-360)
-  glat: number; // Galactic latitude (degrees, -90 to 90)
-  sourceClass: SourceClass;
-  flux: number; // Photon flux (ph/cm²/s)
-  spectralIndex: number;
-  significance: number; // Detection significance (sigma)
+  unified_name: string;
+  ra: number;
+  dec: number;
+  primary_catalog: CatalogName;
+  created_at: string;
+  catalog_count: number;
+  avg_confidence: number | null;
+  best_confidence: number | null;
+  source_class: string | null;
+  significance: number | null;
+  flux1000: number | null;
+  spectral_index: number | null;
+  associated_name: string | null;
+  discovery_method: string | null;
+}
+
+export interface SourceDetail {
+  id: string;
+  unified_name: string;
+  ra: number;
+  dec: number;
+  primary_catalog: CatalogName;
+  discovery_date: string | null;
+  created_at: string;
+  updated_at: string;
+  catalog_entries: CatalogEntry[];
+  distance: number | null;
 }
 
 export interface SourcesQueryParams {
-  page: number; // 1-indexed
+  page: number;
   pageSize: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  // Filters
+  sortOrder?: "asc" | "desc";
   search?: string;
-  sourceClass?: SourceClass[];
+  primaryCatalogs?: CatalogName[];
+  sourceClasses?: string[];
   raMin?: number;
   raMax?: number;
   decMin?: number;
   decMax?: number;
+  confidenceMin?: number;
+  confidenceMax?: number;
+  significanceMin?: number;
+  significanceMax?: number;
   fluxMin?: number;
   fluxMax?: number;
-  significanceMin?: number;
+  minCatalogCount?: number;
 }
 
 export interface SourcesResponse {
@@ -38,20 +68,3 @@ export interface SourcesResponse {
   page: number;
   pageSize: number;
 }
-
-export const SOURCE_CLASS_LABELS: Record<SourceClass, string> = {
-  PSR: 'Pulsar',
-  BLL: 'BL Lac',
-  FSRQ: 'Flat Spectrum Radio Quasar',
-  AGN: 'Active Galactic Nucleus',
-  UNK: 'Unknown',
-  BIN: 'Binary System',
-  HMB: 'High-Mass Binary',
-  SNR: 'Supernova Remnant',
-};
-
-export const SOURCE_CLASS_OPTIONS: Array<{ value: SourceClass; label: string }> = 
-  Object.entries(SOURCE_CLASS_LABELS).map(([value, label]) => ({
-    value: value as SourceClass,
-    label,
-  }));

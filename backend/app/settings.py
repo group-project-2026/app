@@ -39,10 +39,14 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.gis",
     "rest_framework",
 ]
 
 OUR_APPS = [
+    "sources",
+    "catalogs",
+    "api",
     "fermi",
 ]
 
@@ -85,7 +89,7 @@ WSGI_APPLICATION = "app.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": os.getenv(
-            "POSTGRES_ENGINE", "django.db.backends.postgresql_psycopg2"
+            "POSTGRES_ENGINE", "django.contrib.gis.db.backends.postgis"
         ),
         "NAME": os.getenv("POSTGRES_DB", "fermi"),
         "USER": os.getenv("POSTGRES_USER", "fermi"),
@@ -130,7 +134,21 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
+    "DEFAULT_FILTER_BACKENDS": [
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
