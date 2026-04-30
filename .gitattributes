@@ -1,0 +1,7 @@
+# Normalize line endings to LF for shell scripts
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+
+# Ensure Windows batch files use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
