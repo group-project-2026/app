@@ -1,8 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getCategoryMeta, type CosmicCategory } from "./types";
-
-const ALL_CATEGORIES: CosmicCategory[] = ["star", "galaxy", "nebula", "pulsar", "quasar", "black-hole", "planet", "cluster"];
+import { ALL_CATEGORIES, getCategoryMeta, type CosmicCategory } from "./types";
 
 interface Props {
   activeCategories: Set<CosmicCategory>;

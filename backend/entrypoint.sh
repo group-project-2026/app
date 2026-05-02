@@ -28,9 +28,9 @@ PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$
 echo "Running database migrations..."
 python manage.py migrate
 
-# Load Fermi catalog if it hasn't been loaded yet
-echo "Loading Fermi-LAT catalog data..."
-python manage.py ingest_catalogs --catalogs FERMI || echo "Warning: Could not load Fermi data (may already be loaded)"
+# Load catalog data if not already loaded
+echo "Loading catalog data (FERMI, LHAASO, HAWC, TEVCAT)..."
+python manage.py ingest_catalogs --catalogs FERMI LHAASO HAWC TEVCAT || echo "Warning: Could not load catalog data (may already be loaded)"
 
 echo "Starting Django development server on 0.0.0.0:8000..."
 python manage.py runserver 0.0.0.0:8000

@@ -1,14 +1,10 @@
 import type { TFunction } from "i18next";
 
 export type CosmicCategory =
-  | "star"
-  | "galaxy"
-  | "nebula"
-  | "pulsar"
-  | "quasar"
-  | "black-hole"
-  | "planet"
-  | "cluster";
+  | "FERMI"
+  | "LHAASO"
+  | "HAWC"
+  | "TEVCAT";
 
 export interface CosmicPoint {
   id: string;
@@ -17,47 +13,47 @@ export interface CosmicPoint {
   ra: number;
   dec: number;
   magnitude: number;
-  description: string;
-  distance: string;
-  discoveredBy: string;
+  primaryCatalog: CosmicCategory;
+  sourceClass: string | null;
+  significance: number | null;
+  flux1000: number | null;
+  spectralIndex: number | null;
+  associatedName: string | null;
+  discoveryMethod: string | null;
+  bestConfidence: number | null;
+  avgConfidence: number | null;
+  catalogCount: number;
 }
 
 export const CATEGORY_COLORS: Record<CosmicCategory, string> = {
-  star: "#facc15",
-  galaxy: "#a855f7",
-  nebula: "#ec4899",
-  pulsar: "#22d3ee",
-  quasar: "#f97316",
-  "black-hole": "#ef4444",
-  planet: "#22c55e",
-  cluster: "#3b82f6",
+  FERMI: "#facc15",
+  LHAASO: "#22d3ee",
+  HAWC: "#f97316",
+  TEVCAT: "#a855f7",
 };
 
-export const getCategoryMeta = (t: TFunction): Record<
-  CosmicCategory,
-  { label: string; color: string }
-> => ({
-  star: { label: t("universeMap.categories.star"), color: CATEGORY_COLORS.star },
-  galaxy: { label: t("universeMap.categories.galaxy"), color: CATEGORY_COLORS.galaxy },
-  nebula: { label: t("universeMap.categories.nebula"), color: CATEGORY_COLORS.nebula },
-  pulsar: { label: t("universeMap.categories.pulsar"), color: CATEGORY_COLORS.pulsar },
-  quasar: { label: t("universeMap.categories.quasar"), color: CATEGORY_COLORS.quasar },
-  "black-hole": { label: t("universeMap.categories.blackHole"), color: CATEGORY_COLORS["black-hole"] },
-  planet: { label: t("universeMap.categories.planet"), color: CATEGORY_COLORS.planet },
-  cluster: { label: t("universeMap.categories.cluster"), color: CATEGORY_COLORS.cluster },
+export const ALL_CATEGORIES: CosmicCategory[] = [
+  "FERMI",
+  "LHAASO",
+  "HAWC",
+  "TEVCAT",
+];
+
+export const getCategoryMeta = (
+  t: TFunction,
+): Record<CosmicCategory, { label: string; color: string }> => ({
+  FERMI: { label: t("universeMap.categories.fermi"), color: CATEGORY_COLORS.FERMI },
+  LHAASO: { label: t("universeMap.categories.lhaaso"), color: CATEGORY_COLORS.LHAASO },
+  HAWC: { label: t("universeMap.categories.hawc"), color: CATEGORY_COLORS.HAWC },
+  TEVCAT: { label: t("universeMap.categories.tevcat"), color: CATEGORY_COLORS.TEVCAT },
 });
 
-// Dla kompatybilności wstecznej - deprecated
 export const CATEGORY_META: Record<
   CosmicCategory,
   { label: string; color: string }
 > = {
-  star: { label: "Star", color: CATEGORY_COLORS.star },
-  galaxy: { label: "Galaxy", color: CATEGORY_COLORS.galaxy },
-  nebula: { label: "Nebula", color: CATEGORY_COLORS.nebula },
-  pulsar: { label: "Pulsar", color: CATEGORY_COLORS.pulsar },
-  quasar: { label: "Quasar", color: CATEGORY_COLORS.quasar },
-  "black-hole": { label: "Black Hole", color: CATEGORY_COLORS["black-hole"] },
-  planet: { label: "Planet", color: CATEGORY_COLORS.planet },
-  cluster: { label: "Cluster", color: CATEGORY_COLORS.cluster },
+  FERMI: { label: "Fermi-LAT", color: CATEGORY_COLORS.FERMI },
+  LHAASO: { label: "LHAASO", color: CATEGORY_COLORS.LHAASO },
+  HAWC: { label: "HAWC", color: CATEGORY_COLORS.HAWC },
+  TEVCAT: { label: "TeVCat", color: CATEGORY_COLORS.TEVCAT },
 };

@@ -1,25 +1,27 @@
-import { CATEGORY_META } from "../types";
+import { CATEGORY_META, ALL_CATEGORIES } from "../types";
 import type { CosmicCategory } from "../types";
 
 describe("types", () => {
   describe("CATEGORY_META", () => {
     const EXPECTED_CATEGORIES: CosmicCategory[] = [
-      "star",
-      "galaxy",
-      "nebula",
-      "pulsar",
-      "quasar",
-      "black-hole",
-      "planet",
-      "cluster",
+      "FERMI",
+      "LHAASO",
+      "HAWC",
+      "TEVCAT",
     ];
 
-    it("should contain all 8 cosmic categories", () => {
+    it("should contain all 4 catalog categories", () => {
       const keys = Object.keys(CATEGORY_META);
-      expect(keys).toHaveLength(8);
+      expect(keys).toHaveLength(4);
       for (const cat of EXPECTED_CATEGORIES) {
         expect(CATEGORY_META).toHaveProperty(cat);
       }
+    });
+
+    it("should expose ALL_CATEGORIES list matching keys", () => {
+      expect(new Set(ALL_CATEGORIES)).toEqual(
+        new Set(Object.keys(CATEGORY_META) as CosmicCategory[]),
+      );
     });
 
     it("should have a label and color for each category", () => {
