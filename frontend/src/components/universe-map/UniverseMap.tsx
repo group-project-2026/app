@@ -8,22 +8,23 @@ import { CoordinateOverlay } from "./CoordinateOverlay";
 import { PointDetailPanel } from "./PointDetailPanel";
 import { Legend } from "./Legend";
 import { Filters } from "./Filters";
-import { MOCK_POINTS } from "./data/mock-points";
+import { useUniverseMapPoints } from "./useUniverseMapPoints";
 import type { CosmicCategory, CosmicPoint } from "./types";
-import { CATEGORY_META } from "./types";
-
-const ALL_CATEGORIES = new Set(Object.keys(CATEGORY_META) as CosmicCategory[]);
+import { ALL_CATEGORIES } from "./types";
 
 export function UniverseMap() {
   const { t } = useTranslation();
+  const { data, isLoading, isError, error } = useUniverseMapPoints();
   const [selectedPoint, setSelectedPoint] = useState<CosmicPoint | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<CosmicCategory>>(
-    new Set(ALL_CATEGORIES)
+    () => new Set(ALL_CATEGORIES),
   );
 
+  const allPoints = useMemo(() => data ?? [], [data]);
+
   const filteredPoints = useMemo(
-    () => MOCK_POINTS.filter((p) => activeCategories.has(p.category)),
-    [activeCategories]
+    () => allPoints.filter((p) => activeCategories.has(p.category)),
+    [allPoints, activeCategories],
   );
 
   const handleSelectPoint = useCallback((point: CosmicPoint) => {
@@ -96,8 +97,27 @@ export function UniverseMap() {
           onToggle={handleToggleCategory}
         />
 
+        {isLoading && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 rounded-lg border border-white/10 bg-black/70 backdrop-blur-xl px-4 py-2 text-xs text-white/70">
+            {t("universeMap.loading")}
+          </div>
+        )}
+
+        {isError && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 rounded-lg border border-red-500/40 bg-red-950/60 backdrop-blur-xl px-4 py-2 text-xs text-red-200">
+            {t("universeMap.errorLoading", { message: error?.message ?? "" })}
+          </div>
+        )}
+
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 text-[11px] text-white/25 select-none pointer-events-none whitespace-nowrap">
           {t("universeMap.instructions")}
+        </div>
+
+        <div className="absolute bottom-4 left-4 z-10 text-[11px] text-white/40 select-none pointer-events-none">
+          {t("universeMap.pointsCount", {
+            shown: filteredPoints.length,
+            total: allPoints.length,
+          })}
         </div>
       </div>
       {panelOpen && (
