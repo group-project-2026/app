@@ -18,7 +18,7 @@ function sanitizeCanvasChildren(children: React.ReactNode): React.ReactNode {
     }
 
     return React.cloneElement(child, {
-      children: sanitizeCanvasChildren(child.props.children),
+      children: sanitizeCanvasChildren(child.props.children)
     });
   });
 }
@@ -28,12 +28,12 @@ jest.mock("@react-three/fiber", () => ({
     React.createElement(
       "div",
       { "data-testid": "r3f-canvas" },
-      sanitizeCanvasChildren(children),
+      sanitizeCanvasChildren(children)
     ),
   useThree: () => ({
-    camera: { getWorldDirection: jest.fn() },
+    camera: { getWorldDirection: jest.fn() }
   }),
-  useFrame: jest.fn(),
+  useFrame: jest.fn()
 }));
 
 jest.mock("@react-three/drei", () => ({
@@ -41,22 +41,22 @@ jest.mock("@react-three/drei", () => ({
     React.createElement("div", { "data-testid": "orbit-controls" }),
   Stars: () => React.createElement("div", { "data-testid": "stars" }),
   Line: () => null,
-  Html: () => null,
+  Html: () => null
 }));
 
 jest.mock("../CelestialSphere", () => ({
   CelestialSphere: () =>
     React.createElement("div", { "data-testid": "celestial-sphere" }),
-  SPHERE_RADIUS: 5,
+  SPHERE_RADIUS: 5
 }));
 
-jest.mock("../CosmicPoint", () => ({
-  CosmicPoints: ({
+jest.mock("../HierarchicalSky", () => ({
+  HierarchicalSky: ({
     points,
-    onSelect,
+    onSelectPoint
   }: {
     points: { id: string; name: string }[];
-    onSelect: (p: { id: string; name: string }) => void;
+    onSelectPoint: (p: { id: string; name: string }) => void;
   }) =>
     React.createElement(
       "div",
@@ -67,17 +67,21 @@ jest.mock("../CosmicPoint", () => ({
           {
             key: p.id,
             "data-testid": `point-${p.id}`,
-            onClick: () => onSelect(p),
+            onClick: () => onSelectPoint(p)
           },
-          p.name,
-        ),
-      ),
-    ),
+          p.name
+        )
+      )
+    )
+}));
+
+jest.mock("../cameraTween", () => ({
+  CameraTweenDriver: () => null
 }));
 
 jest.mock("../CoordinateOverlay", () => ({
   CoordinateOverlay: () =>
-    React.createElement("div", { "data-testid": "coordinate-overlay" }),
+    React.createElement("div", { "data-testid": "coordinate-overlay" })
 }));
 
 const FAKE_POINTS: CosmicPoint[] = [
@@ -97,7 +101,7 @@ const FAKE_POINTS: CosmicPoint[] = [
     discoveryMethod: null,
     bestConfidence: 0.9,
     avgConfidence: 0.8,
-    catalogCount: 1,
+    catalogCount: 1
   },
   {
     id: "src-fermi-2",
@@ -115,7 +119,7 @@ const FAKE_POINTS: CosmicPoint[] = [
     discoveryMethod: null,
     bestConfidence: 0.95,
     avgConfidence: 0.9,
-    catalogCount: 2,
+    catalogCount: 2
   },
   {
     id: "src-lhaaso-1",
@@ -133,8 +137,8 @@ const FAKE_POINTS: CosmicPoint[] = [
     discoveryMethod: "TeV",
     bestConfidence: 0.99,
     avgConfidence: 0.95,
-    catalogCount: 1,
-  },
+    catalogCount: 1
+  }
 ];
 
 jest.mock("../useUniverseMapPoints", () => ({
@@ -142,8 +146,8 @@ jest.mock("../useUniverseMapPoints", () => ({
     data: FAKE_POINTS,
     isLoading: false,
     isError: false,
-    error: null,
-  }),
+    error: null
+  })
 }));
 
 import { render, screen } from "@testing-library/react";
@@ -189,7 +193,7 @@ describe("UniverseMap", () => {
     render(<UniverseMap />);
     const pointsContainer = screen.getByTestId("cosmic-points");
     expect(Number(pointsContainer.getAttribute("data-count"))).toBe(
-      FAKE_POINTS.length,
+      FAKE_POINTS.length
     );
   });
 
@@ -219,7 +223,7 @@ describe("UniverseMap", () => {
 
     const allButtons = screen.getAllByRole("button");
     const closeButton = allButtons.find(
-      (btn) => !btn.getAttribute("data-testid")?.startsWith("point-"),
+      (btn) => !btn.getAttribute("data-testid")?.startsWith("point-")
     );
     expect(closeButton).toBeTruthy();
     await user.click(closeButton!);
@@ -232,7 +236,7 @@ describe("UniverseMap", () => {
     render(<UniverseMap />);
 
     const initialCount = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
     expect(initialCount).toBe(FAKE_POINTS.length);
 
@@ -241,10 +245,10 @@ describe("UniverseMap", () => {
     await user.click(fermiElements[1]);
 
     const newCount = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
     expect(newCount).toBe(
-      FAKE_POINTS.filter((p) => p.category !== "FERMI").length,
+      FAKE_POINTS.filter((p) => p.category !== "FERMI").length
     );
   });
 
@@ -255,12 +259,12 @@ describe("UniverseMap", () => {
     const fermiElements = screen.getAllByText(CATEGORY_META.FERMI.label);
     await user.click(fermiElements[1]);
     const reduced = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
 
     await user.click(fermiElements[1]);
     const restored = Number(
-      screen.getByTestId("cosmic-points").getAttribute("data-count"),
+      screen.getByTestId("cosmic-points").getAttribute("data-count")
     );
 
     expect(restored).toBe(FAKE_POINTS.length);
