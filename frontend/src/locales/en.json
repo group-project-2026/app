@@ -15,7 +15,18 @@
     "legend": "Legend",
     "loading": "Loading sources…",
     "errorLoading": "Failed to load sources: {{message}}",
-    "pointsCount": "Showing {{shown}} of {{total}} sources",
+    "pointsCount": "{{clusters}} clusters · {{points}} points · {{shown}} of {{total}} sources",
+    "cluster": {
+      "tooltip_one": "{{count}} source",
+      "tooltip_other": "{{count}} sources"
+    },
+    "focus": {
+      "label": "Region",
+      "count_one": "{{count}} source",
+      "count_other": "{{count}} sources",
+      "exit": "Exit region",
+      "exitHint": "Click background or Esc to return"
+    },
     "categories": {
       "fermi": "Fermi-LAT",
       "lhaaso": "LHAASO",

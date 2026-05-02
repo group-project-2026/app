@@ -15,7 +15,22 @@
     "legend": "Legenda",
     "loading": "Ładowanie źródeł…",
     "errorLoading": "Nie udało się załadować źródeł: {{message}}",
-    "pointsCount": "Wyświetlono {{shown}} z {{total}} źródeł",
+    "pointsCount": "{{clusters}} klastrów · {{points}} punktów · {{shown}} z {{total}} źródeł",
+    "cluster": {
+      "tooltip_one": "{{count}} źródło",
+      "tooltip_few": "{{count}} źródła",
+      "tooltip_many": "{{count}} źródeł",
+      "tooltip_other": "{{count}} źródeł"
+    },
+    "focus": {
+      "label": "Obszar",
+      "count_one": "{{count}} źródło",
+      "count_few": "{{count}} źródła",
+      "count_many": "{{count}} źródeł",
+      "count_other": "{{count}} źródeł",
+      "exit": "Wyjdź z obszaru",
+      "exitHint": "Kliknij tło lub Esc, aby wrócić"
+    },
     "categories": {
       "fermi": "Fermi-LAT",
       "lhaaso": "LHAASO",
