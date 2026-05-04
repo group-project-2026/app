@@ -1,3 +1,6 @@
+import math
+from collections import defaultdict
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -37,6 +40,264 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action in ("list", "filter"):
             return SourceListSerializer
         return SourceDetailSerializer
+
+    @staticmethod
+    def _preferred_entry(source):
+        entries = list(source.catalog_entries.all())
+        if not entries:
+            return None
+
+        for entry in entries:
+            if entry.catalog_name == source.primary_catalog:
+                return entry
+
+        return entries[0]
+
+    @staticmethod
+    def _metadata_float(metadata, key):
+        if not isinstance(metadata, dict):
+            return None
+
+        raw_value = metadata.get(key)
+        if raw_value in (None, ""):
+            return None
+
+        try:
+            return float(raw_value)
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _detectability_score(cls, significance, flux1000, confidence):
+        score = 0.0
+
+        if significance is not None:
+            score += significance * 5.0
+
+        if flux1000 is not None and flux1000 > 0:
+            score += math.log10((flux1000 * 1e13) + 1.0) * 6.0
+
+        if confidence is not None:
+            score += confidence * 40.0
+
+        return round(max(0.0, min(100.0, score)), 1)
+
+    @staticmethod
+    def _median(values):
+        if not values:
+            return 0
+
+        ordered = sorted(values)
+        middle = len(ordered) // 2
+        if len(ordered) % 2 == 0:
+            return (ordered[middle - 1] + ordered[middle]) / 2
+        return ordered[middle]
+
+    @staticmethod
+    def _p95(values):
+        if not values:
+            return 0
+
+        ordered = sorted(values)
+        index = max(0, min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1))
+        return ordered[index]
+
+    def _analytics_rows(self, sources):
+        rows = []
+
+        for source in sources:
+            entry = self._preferred_entry(source)
+            metadata = entry.metadata if entry and isinstance(entry.metadata, dict) else {}
+            significance = self._metadata_float(metadata, "significance")
+            flux1000 = self._metadata_float(metadata, "flux1000")
+            confidence = entry.confidence if entry else None
+
+            rows.append(
+                {
+                    "catalog": source.primary_catalog,
+                    "year": source.created_at.year if source.created_at else None,
+                    "sourceClass": metadata.get("source_class") or "Unknown",
+                    "discoveryMethod": entry.discovery_method if entry and entry.discovery_method else "Unknown",
+                    "emissionFlux": flux1000 or 0,
+                    "significanceSigma": significance or 0,
+                    "detectability": self._detectability_score(
+                        significance,
+                        flux1000,
+                        confidence,
+                    ),
+                }
+            )
+
+        return rows
+
+    def _group_rows(self, rows, group_by):
+        groups = defaultdict(list)
+
+        for row in rows:
+            if group_by == "year":
+                key = str(row["year"]) if row["year"] is not None else "Unknown"
+            elif group_by == "sourceClass":
+                key = row["sourceClass"] or "Unknown"
+            elif group_by == "discoveryMethod":
+                key = row["discoveryMethod"] or "Unknown"
+            else:
+                key = row["catalog"]
+
+            groups[key].append(row)
+
+        result = []
+        for group, items in groups.items():
+            emissions = [item["emissionFlux"] for item in items]
+            significances = [item["significanceSigma"] for item in items]
+            detectabilities = [item["detectability"] for item in items]
+            high_count = sum(1 for value in detectabilities if value >= 70)
+
+            result.append(
+                {
+                    "group": group,
+                    "sampleCount": len(items),
+                    "avgEmissionFlux": round(sum(emissions) / len(emissions), 3) if emissions else 0,
+                    "medianEmissionFlux": round(self._median(emissions), 3) if emissions else 0,
+                    "avgSignificance": round(sum(significances) / len(significances), 2) if significances else 0,
+                    "peakSignificance": round(max(significances), 2) if significances else 0,
+                    "avgDetectability": round(sum(detectabilities) / len(detectabilities), 1) if detectabilities else 0,
+                    "highDetectabilityShare": round((high_count / len(items)) * 100, 1) if items else 0,
+                }
+            )
+
+        if group_by == "year":
+            result.sort(key=lambda item: item["group"] if item["group"] != "Unknown" else "9999")
+        else:
+            result.sort(key=lambda item: item["group"])
+
+        return result
+
+    def _catalog_rows(self, rows):
+        grouped = defaultdict(list)
+        for row in rows:
+            grouped[row["catalog"]].append(row)
+
+        catalog_rows = []
+        for catalog, items in grouped.items():
+            emissions = [item["emissionFlux"] for item in items]
+            significances = [item["significanceSigma"] for item in items]
+            detectabilities = [item["detectability"] for item in items]
+            high_count = sum(1 for value in detectabilities if value >= 70)
+
+            catalog_rows.append(
+                {
+                    "catalog": catalog,
+                    "sampleCount": len(items),
+                    "avgEmissionFlux": round(sum(emissions) / len(emissions), 3) if emissions else 0,
+                    "peakEmissionFlux": round(max(emissions), 3) if emissions else 0,
+                    "avgSignificance": round(sum(significances) / len(significances), 2) if significances else 0,
+                    "p95Significance": round(self._p95(significances), 2) if significances else 0,
+                    "peakSignificance": round(max(significances), 2) if significances else 0,
+                    "avgDetectability": round(sum(detectabilities) / len(detectabilities), 1) if detectabilities else 0,
+                    "highDetectabilityShare": round((high_count / len(items)) * 100, 1) if items else 0,
+                    "low": sum(1 for value in detectabilities if value < 40),
+                    "medium": sum(1 for value in detectabilities if 40 <= value < 70),
+                    "high": sum(1 for value in detectabilities if value >= 70),
+                }
+            )
+
+        catalog_rows.sort(key=lambda item: item["catalog"])
+        return catalog_rows
+
+    @action(detail=False, methods=["get"])
+    def analytics(self, request):
+        queryset = self.queryset
+        catalogs = [catalog for catalog in request.query_params.getlist("catalog") if catalog]
+        if catalogs:
+            queryset = queryset.filter(primary_catalog__in=catalogs)
+
+        search = request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(unified_name__icontains=search)
+                | Q(catalog_entries__original_name__icontains=search)
+            ).distinct()
+
+        sources = list(queryset.prefetch_related("catalog_entries").order_by("primary_catalog", "unified_name"))
+        rows = self._analytics_rows(sources)
+
+        if not rows:
+            return Response(
+                {
+                    "headlineMetrics": {"samples": 0, "avgEmissionFlux": 0, "avgSignificance": 0, "avgDetectability": 0, "highDetectabilityShare": 0},
+                    "catalogRows": [],
+                    "groupingRows": [],
+                    "emissionTrend": [],
+                    "emissionComparison": [],
+                    "significanceComparison": [],
+                    "detectabilityComparison": [],
+                    "radarComparison": [],
+                    "availableCatalogs": [],
+                    "groupBy": request.query_params.get("group_by", "catalog"),
+                }
+            )
+
+        emissions = [row["emissionFlux"] for row in rows]
+        significances = [row["significanceSigma"] for row in rows]
+        detectabilities = [row["detectability"] for row in rows]
+
+        catalog_rows = self._catalog_rows(rows)
+        available_catalogs = [row["catalog"] for row in catalog_rows]
+        years = sorted({row["year"] for row in rows if row["year"] is not None})
+
+        emission_trend = []
+        for year in years:
+            point = {"year": year}
+            for catalog in available_catalogs:
+                values = [row["emissionFlux"] for row in rows if row["year"] == year and row["catalog"] == catalog]
+                point[catalog] = round(sum(values) / len(values), 3) if values else None
+            emission_trend.append(point)
+
+        max_emission = max((item["avgEmissionFlux"] for item in catalog_rows), default=0)
+        max_significance = max((item["avgSignificance"] for item in catalog_rows), default=0)
+        max_detectability = max((item["avgDetectability"] for item in catalog_rows), default=0)
+
+        radar_comparison = []
+        for item in catalog_rows:
+            radar_comparison.append(
+                {
+                    "catalog": item["catalog"],
+                    "emissionIndex": 0 if max_emission == 0 else round((item["avgEmissionFlux"] / max_emission) * 100, 1),
+                    "significanceIndex": 0 if max_significance == 0 else round((item["avgSignificance"] / max_significance) * 100, 1),
+                    "detectabilityIndex": 0 if max_detectability == 0 else round((item["avgDetectability"] / max_detectability) * 100, 1),
+                    "highDetectabilityShare": item["highDetectabilityShare"],
+                }
+            )
+
+        return Response(
+            {
+                "headlineMetrics": {
+                    "samples": len(rows),
+                    "avgEmissionFlux": round(sum(emissions) / len(emissions), 3) if emissions else 0,
+                    "avgSignificance": round(sum(significances) / len(significances), 2) if significances else 0,
+                    "avgDetectability": round(sum(detectabilities) / len(detectabilities), 1) if detectabilities else 0,
+                    "highDetectabilityShare": round((sum(1 for value in detectabilities if value >= 70) / len(rows)) * 100, 1),
+                },
+                "catalogRows": catalog_rows,
+                "groupingRows": self._group_rows(rows, request.query_params.get("group_by", "catalog")),
+                "emissionTrend": emission_trend,
+                "emissionComparison": [
+                    {"catalog": item["catalog"], "avgEmissionFlux": item["avgEmissionFlux"], "peakEmissionFlux": item["peakEmissionFlux"]}
+                    for item in catalog_rows
+                ],
+                "significanceComparison": [
+                    {"catalog": item["catalog"], "avgSignificance": item["avgSignificance"], "p95Significance": item["p95Significance"], "peakSignificance": item["peakSignificance"]}
+                    for item in catalog_rows
+                ],
+                "detectabilityComparison": [
+                    {"catalog": item["catalog"], "low": item["low"], "medium": item["medium"], "high": item["high"], "avgDetectability": item["avgDetectability"]}
+                    for item in catalog_rows
+                ],
+                "radarComparison": radar_comparison,
+                "availableCatalogs": available_catalogs,
+                "groupBy": request.query_params.get("group_by", "catalog"),
+            }
+        )
 
     @action(detail=False, methods=["get"])
     def region(self, request):
