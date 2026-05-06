@@ -149,3 +149,13 @@ class SourceListSerializer(serializers.ModelSerializer):
     def get_discovery_method(self, obj):
         entry = self._get_preferred_entry(obj)
         return entry.discovery_method if entry else None
+
+
+class SourceMapPointSerializer(SourceListSerializer):
+    """Map-focused serializer that extends list fields with discovery date."""
+
+    discovery_date = serializers.DateTimeField(read_only=True)
+
+    class Meta(SourceListSerializer.Meta):
+        fields = SourceListSerializer.Meta.fields + ["discovery_date"]
+        read_only_fields = fields

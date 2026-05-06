@@ -166,6 +166,33 @@
     "catalogComparisonDescription": "Porównanie katalogów przez wynik złożony i nakładanie katalogów.",
     "catalogCoverage": "Pokrycie katalogów",
     "catalogCoverageDescription": "Porównanie liczby próbek i różnorodności klas między katalogami.",
+    "map": {
+      "title": "Mapa nieba katalogów",
+      "description": "Interaktywna projekcja nieba z kontrolą projekcji, nakładkami katalogów i filtrem czasu.",
+      "projection": "Projekcja",
+      "coordinates": "Układ współrzędnych",
+      "equatorial": "Równikowy",
+      "galactic": "Galaktyczny",
+      "timeline": "Zakres dat odkrycia",
+      "resetView": "Reset widoku",
+      "ra": "Środek RA (deg)",
+      "dec": "Środek DEC (deg)",
+      "radius": "Promień (deg)",
+      "applyRadius": "Zastosuj promień",
+      "clearRadius": "Wyczyść promień",
+      "radiusActive": "Filtr promienia",
+      "radiusInactive": "Filtr promienia nieaktywny",
+      "radiusValidation": "Podaj poprawne RA (0-360), DEC (-90 do 90) i promień (0-180).",
+      "points": "Widoczne punkty",
+      "position": "Pozycja na niebie",
+      "significance": "Istotność",
+      "projections": {
+        "aitoff": "Aitoff",
+        "mollweide": "Mollweide",
+        "orthographic": "Ortograficzna",
+        "equirectangular": "Równodystansowa"
+      }
+    },
     "coverageMetrics": {
       "sampleCount": "Próbki",
       "classDiversity": "Różnorodność klas"
@@ -196,6 +223,14 @@
     "cdfPercentage": "Procent",
     "topSourcesBubbleTitle": "Wykres bąbelkowy top źródeł",
     "topSourcesBubbleDescription": "Istotność vs flux dla 20 najlepszych źródeł, rozmiar względem wyniku.",
+    "significanceHistogramTitle": "Histogram istotności",
+    "significanceHistogramDescription": "Histogram w skali log z podziałem na katalogi. Przełącz overlap/facets.",
+    "histogram": {
+      "mode": {
+        "overlap": "Nakładanie",
+        "facets": "Facety"
+      }
+    },
     "bubbleScore": "Wynik",
     "bubbleSignificance": "Istotność",
     "bubbleFlux": "Flux1000",

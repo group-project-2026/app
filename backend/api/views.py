@@ -1,16 +1,20 @@
 import math
+from datetime import datetime, time
 from collections import defaultdict
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Min, Max
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 
 from sources.models import Source, CatalogEntry
 from catalogs.crossmatch import CrossMatchService
 from .serializers import (
     SourceDetailSerializer,
     SourceListSerializer,
+    SourceMapPointSerializer,
     CatalogEntrySerializer,
 )
 
@@ -39,7 +43,31 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         """Use lightweight serializer for list views."""
         if self.action in ("list", "filter"):
             return SourceListSerializer
+        if self.action == "analytics_map":
+            return SourceMapPointSerializer
         return SourceDetailSerializer
+
+    @staticmethod
+    def _parse_date_bound(raw_value, param_name, is_end=False):
+        if raw_value in (None, ""):
+            return None, None
+
+        parsed = parse_datetime(raw_value)
+        if parsed is None:
+            date_value = parse_date(raw_value)
+            if date_value is None:
+                return None, Response(
+                    {"error": f"Invalid value for '{param_name}': expected ISO date/datetime"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            parsed = datetime.combine(
+                date_value, time.max if is_end else time.min
+            )
+
+        if timezone.is_naive(parsed):
+            parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+
+        return parsed, None
 
     @staticmethod
     def _preferred_entry(source):
@@ -268,6 +296,60 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                     "highDetectabilityShare": item["highDetectabilityShare"],
                 }
             )
+            # Build log-spaced histogram for significance per catalog
+            def _build_significance_histogram(all_rows, bins=15, min_exp=0, max_exp=4):
+                # bins between 10^min_exp and 10^max_exp (inclusive)
+                step = (max_exp - min_exp) / bins
+                edges = [10 ** (min_exp + i * step) for i in range(bins + 1)]
+
+                # prepare structure: { catalog: { bins: [{min, max, label, count}], total } }
+                grouped = defaultdict(list)
+                for r in all_rows:
+                    sig = r.get("significanceSigma")
+                    # ignore missing or non-positive values for log histogram
+                    if sig is None or sig <= 0:
+                        continue
+                    grouped[r.get("catalog")].append(sig)
+
+                result = {}
+                for catalog, values in grouped.items():
+                    counts = [0] * bins
+                    for v in values:
+                        # find bin index
+                        idx = None
+                        for i in range(bins):
+                            lo = edges[i]
+                            hi = edges[i + 1]
+                            if i == bins - 1:
+                                if v >= lo and v <= hi:
+                                    idx = i
+                                    break
+                            else:
+                                if v >= lo and v < hi:
+                                    idx = i
+                                    break
+                        if idx is None:
+                            # if value outside range, skip
+                            continue
+                        counts[idx] += 1
+
+                    total = len(values)
+                    bin_objs = []
+                    for i in range(bins):
+                        lo = edges[i]
+                        hi = edges[i + 1]
+                        label = f"{lo:.2g}-{hi:.2g}"
+                        bin_objs.append({
+                            "min": lo,
+                            "max": hi,
+                            "label": label,
+                            "count": counts[i],
+                            "percentage": round((counts[i] / total) * 100, 1) if total > 0 else 0,
+                        })
+
+                    result[catalog] = {"bins": bin_objs, "total": total}
+
+                return {"edges": edges, "perCatalog": result}
 
         return Response(
             {
@@ -294,8 +376,273 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                     for item in catalog_rows
                 ],
                 "radarComparison": radar_comparison,
+                "significanceHistogram": _build_significance_histogram(rows),
                 "availableCatalogs": available_catalogs,
                 "groupBy": request.query_params.get("group_by", "catalog"),
+            }
+        )
+
+    @action(detail=False, methods=["get"])
+    def analytics_map(self, request):
+        """
+        Return map-ready source points with filter metadata.
+
+        Parameters:
+        - catalog: Repeatable catalog filter
+        - search: Text search in source names
+        - ra_min, ra_max: RA bounds [0..360]
+        - dec_min, dec_max: DEC bounds [-90..90]
+        - significance_min, significance_max: Metadata significance bounds
+        - flux_min, flux_max: Metadata flux1000 bounds
+        - discovery_date_start, discovery_date_end: ISO date/datetime bounds
+        - ra, dec, radius: Optional circular region filter in sky coordinates
+        """
+        queryset = self.queryset
+        params = request.query_params
+
+        def parse_float(name, min_value=None, max_value=None):
+            raw = params.get(name)
+            if raw in (None, ""):
+                return None, None
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                return None, Response(
+                    {"error": f"Invalid value for '{name}': expected float"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if min_value is not None and value < min_value:
+                return None, Response(
+                    {"error": f"'{name}' must be >= {min_value}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if max_value is not None and value > max_value:
+                return None, Response(
+                    {"error": f"'{name}' must be <= {max_value}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return value, None
+
+        catalogs = [catalog for catalog in params.getlist("catalog") if catalog]
+        if catalogs:
+            queryset = queryset.filter(primary_catalog__in=catalogs)
+
+        search = params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(unified_name__icontains=search)
+                | Q(catalog_entries__original_name__icontains=search)
+            ).distinct()
+
+        ra_min, error = parse_float("ra_min", 0, 360)
+        if error:
+            return error
+        ra_max, error = parse_float("ra_max", 0, 360)
+        if error:
+            return error
+        dec_min, error = parse_float("dec_min", -90, 90)
+        if error:
+            return error
+        dec_max, error = parse_float("dec_max", -90, 90)
+        if error:
+            return error
+
+        if (
+            ra_min is not None
+            and ra_max is not None
+            and ra_min > ra_max
+        ):
+            return Response(
+                {"error": "'ra_min' must be <= 'ra_max'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if (
+            dec_min is not None
+            and dec_max is not None
+            and dec_min > dec_max
+        ):
+            return Response(
+                {"error": "'dec_min' must be <= 'dec_max'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if ra_min is not None:
+            queryset = queryset.filter(ra__gte=ra_min)
+        if ra_max is not None:
+            queryset = queryset.filter(ra__lte=ra_max)
+        if dec_min is not None:
+            queryset = queryset.filter(dec__gte=dec_min)
+        if dec_max is not None:
+            queryset = queryset.filter(dec__lte=dec_max)
+
+        significance_min, error = parse_float("significance_min")
+        if error:
+            return error
+        significance_max, error = parse_float("significance_max")
+        if error:
+            return error
+        flux_min, error = parse_float("flux_min")
+        if error:
+            return error
+        flux_max, error = parse_float("flux_max")
+        if error:
+            return error
+
+        if (
+            significance_min is not None
+            and significance_max is not None
+            and significance_min > significance_max
+        ):
+            return Response(
+                {"error": "'significance_min' must be <= 'significance_max'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if flux_min is not None and flux_max is not None and flux_min > flux_max:
+            return Response(
+                {"error": "'flux_min' must be <= 'flux_max'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if significance_min is not None:
+            queryset = queryset.filter(
+                catalog_entries__metadata__significance__gte=significance_min
+            )
+        if significance_max is not None:
+            queryset = queryset.filter(
+                catalog_entries__metadata__significance__lte=significance_max
+            )
+        if flux_min is not None:
+            queryset = queryset.filter(catalog_entries__metadata__flux1000__gte=flux_min)
+        if flux_max is not None:
+            queryset = queryset.filter(catalog_entries__metadata__flux1000__lte=flux_max)
+
+        discovery_start_raw = params.get("discovery_date_start")
+        discovery_end_raw = params.get("discovery_date_end")
+        discovery_start, error = self._parse_date_bound(
+            discovery_start_raw,
+            "discovery_date_start",
+            is_end=False,
+        )
+        if error:
+            return error
+        discovery_end, error = self._parse_date_bound(
+            discovery_end_raw,
+            "discovery_date_end",
+            is_end=True,
+        )
+        if error:
+            return error
+
+        if (
+            discovery_start is not None
+            and discovery_end is not None
+            and discovery_start > discovery_end
+        ):
+            return Response(
+                {"error": "'discovery_date_start' must be <= 'discovery_date_end'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if discovery_start is not None:
+            queryset = queryset.filter(discovery_date__gte=discovery_start)
+        if discovery_end is not None:
+            queryset = queryset.filter(discovery_date__lte=discovery_end)
+
+        radius = params.get("radius")
+        if radius not in (None, ""):
+            ra_center, error = parse_float("ra", 0, 360)
+            if error:
+                return error
+            dec_center, error = parse_float("dec", -90, 90)
+            if error:
+                return error
+            radius_value, error = parse_float("radius", 0.0000001, 180)
+            if error:
+                return error
+
+            if ra_center is None or dec_center is None:
+                return Response(
+                    {"error": "'ra' and 'dec' are required when 'radius' is set"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            cross_match = CrossMatchService()
+            nearby_ids = list(
+                cross_match.find_nearby(ra_center, dec_center, radius_value).values_list(
+                    "id", flat=True
+                )
+            )
+            queryset = queryset.filter(id__in=nearby_ids)
+
+        queryset = queryset.distinct().order_by("primary_catalog", "unified_name")
+
+        filtered_sources = queryset
+        bounds = filtered_sources.aggregate(
+            ra_min=Min("ra"),
+            ra_max=Max("ra"),
+            dec_min=Min("dec"),
+            dec_max=Max("dec"),
+            discovery_date_min=Min("discovery_date"),
+            discovery_date_max=Max("discovery_date"),
+        )
+        catalog_distribution = {
+            item["primary_catalog"]: item["count"]
+            for item in filtered_sources.values("primary_catalog")
+            .annotate(count=Count("id"))
+            .order_by("primary_catalog")
+        }
+
+        page = self.paginate_queryset(filtered_sources)
+        serializer = self.get_serializer(page if page is not None else filtered_sources, many=True)
+
+        spatial_bounds = {
+            "raMin": bounds["ra_min"],
+            "raMax": bounds["ra_max"],
+            "decMin": bounds["dec_min"],
+            "decMax": bounds["dec_max"],
+        }
+        date_bounds = {
+            "start": bounds["discovery_date_min"],
+            "end": bounds["discovery_date_max"],
+        }
+        filters_applied = {
+            "catalogs": catalogs,
+            "search": search,
+            "raMin": ra_min,
+            "raMax": ra_max,
+            "decMin": dec_min,
+            "decMax": dec_max,
+            "significanceMin": significance_min,
+            "significanceMax": significance_max,
+            "fluxMin": flux_min,
+            "fluxMax": flux_max,
+            "discoveryDateStart": discovery_start_raw,
+            "discoveryDateEnd": discovery_end_raw,
+            "ra": params.get("ra"),
+            "dec": params.get("dec"),
+            "radius": radius,
+        }
+
+        if page is not None:
+            response = self.get_paginated_response(serializer.data)
+            response.data["spatialBounds"] = spatial_bounds
+            response.data["dateBounds"] = date_bounds
+            response.data["catalogDistribution"] = catalog_distribution
+            response.data["filtersApplied"] = filters_applied
+            return response
+
+        return Response(
+            {
+                "count": len(serializer.data),
+                "next": None,
+                "previous": None,
+                "results": serializer.data,
+                "spatialBounds": spatial_bounds,
+                "dateBounds": date_bounds,
+                "catalogDistribution": catalog_distribution,
+                "filtersApplied": filters_applied,
             }
         )
 

@@ -166,6 +166,33 @@
     "catalogComparisonDescription": "Compare catalogs by composite science score and multi-catalog overlap.",
     "catalogCoverage": "Catalog coverage",
     "catalogCoverageDescription": "Compare sample volume and class diversity across catalogs.",
+    "map": {
+      "title": "Catalog sky map",
+      "description": "Interactive sky projection with projection controls, catalog overlays, and timeline filtering.",
+      "projection": "Projection",
+      "coordinates": "Coordinate system",
+      "equatorial": "Equatorial",
+      "galactic": "Galactic",
+      "timeline": "Discovery date range",
+      "resetView": "Reset view",
+      "ra": "RA center (deg)",
+      "dec": "DEC center (deg)",
+      "radius": "Radius (deg)",
+      "applyRadius": "Apply radius",
+      "clearRadius": "Clear radius",
+      "radiusActive": "Radius filter",
+      "radiusInactive": "Radius filter inactive",
+      "radiusValidation": "Enter valid RA (0-360), DEC (-90 to 90), and radius (0-180).",
+      "points": "Visible points",
+      "position": "Sky position",
+      "significance": "Significance",
+      "projections": {
+        "aitoff": "Aitoff",
+        "mollweide": "Mollweide",
+        "orthographic": "Orthographic",
+        "equirectangular": "Equirectangular"
+      }
+    },
     "coverageMetrics": {
       "sampleCount": "Samples",
       "classDiversity": "Class diversity"
@@ -196,6 +223,14 @@
     "cdfPercentage": "Percentage",
     "topSourcesBubbleTitle": "Top sources bubble chart",
     "topSourcesBubbleDescription": "Significance vs flux for top 20 sources, sized by score.",
+    "significanceHistogramTitle": "Significance histogram",
+    "significanceHistogramDescription": "Log-scale histogram of source significance by catalog. Toggle overlap/facets.",
+    "histogram": {
+      "mode": {
+        "overlap": "Overlap",
+        "facets": "Facets"
+      }
+    },
     "bubbleScore": "Score",
     "bubbleSignificance": "Significance",
     "bubbleFlux": "Flux1000",

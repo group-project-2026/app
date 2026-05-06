@@ -1,6 +1,9 @@
 import { fetchSources } from "../sources/api";
 import type { CatalogName, Source } from "../sources/types";
 
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "/api";
+
 export type GroupByDimension =
   | "catalog"
   | "sourceClass"
@@ -81,34 +84,6 @@ export interface SourceTopRow {
   score: number;
 }
 
-export interface SignificanceDistributionBin {
-  bin: string;
-  range: string;
-  count: number;
-  percentage: number;
-}
-
-export interface CrossCatalogOverlapRow {
-  catalog: string;
-  [key: string]: string | number;
-}
-
-export interface SignificanceCDFPoint {
-  significance: number;
-  cumulative: number;
-  percentage: number;
-}
-
-export interface TopSourcesBubblePoint {
-  name: string;
-  catalog: CatalogName;
-  significance: number;
-  flux: number;
-  confidence: number;
-  score: number;
-  catalogCount: number;
-}
-
 export interface SourceAnalyticsData {
   sources: Source[];
   headlineMetrics: SourceHeadlineMetrics;
@@ -117,10 +92,22 @@ export interface SourceAnalyticsData {
   topSources: SourceTopRow[];
   classMixRows: Array<Record<string, string | number>>;
   topClasses: string[];
-  significanceDistribution: SignificanceDistributionBin[];
-  crossCatalogOverlapMatrix: CrossCatalogOverlapRow[];
-  significanceCDF: SignificanceCDFPoint[];
-  topSourcesBubble: TopSourcesBubblePoint[];
+  significanceHistogram?: {
+    edges: number[];
+    perCatalog: Record<
+      string,
+      {
+        bins: Array<{
+          min: number;
+          max: number;
+          label: string;
+          count: number;
+          percentage: number;
+        }>;
+        total: number;
+      }
+    >;
+  };
   radarComparison: Array<{
     catalog: CatalogName;
     significanceIndex: number;
@@ -484,108 +471,6 @@ function buildClassMixRows(sources: Source[]): {
   return { topClasses, rows };
 }
 
-function buildSignificanceDistribution(
-  sources: Source[]
-): SignificanceDistributionBin[] {
-  const bins = [
-    { min: 0, max: 1, label: "0-1" },
-    { min: 1, max: 2, label: "1-2" },
-    { min: 2, max: 3, label: "2-3" },
-    { min: 3, max: 4, label: "3-4" },
-    { min: 4, max: 5, label: "4-5" },
-    { min: 5, max: Infinity, label: "5+" }
-  ];
-
-  const distribution = bins.map((bin) => {
-    const count = sources.filter((source) => {
-      const sig = sourceSignificance(source);
-      return sig >= bin.min && sig < bin.max;
-    }).length;
-
-    return {
-      bin: bin.label,
-      range: bin.label,
-      count,
-      percentage:
-        sources.length > 0 ? round((count / sources.length) * 100, 1) : 0
-    };
-  });
-
-  return distribution;
-}
-
-function buildCrossCatalogOverlapMatrix(
-  sources: Source[]
-): CrossCatalogOverlapRow[] {
-  const catalogs = SOURCE_CATALOGS.filter((cat) =>
-    sources.some((s) => s.primary_catalog === cat)
-  );
-
-  const matrix: CrossCatalogOverlapRow[] = catalogs.map((catalog1) => {
-    const row: CrossCatalogOverlapRow = { catalog: catalog1 };
-
-    catalogs.forEach((catalog2) => {
-      if (catalog1 === catalog2) {
-        row[catalog2] = sources.filter(
-          (s) => s.primary_catalog === catalog1
-        ).length;
-      } else {
-        row[catalog2] = sources.filter(
-          (s) => s.primary_catalog === catalog1 && s.catalog_count > 1
-        ).length;
-      }
-    });
-
-    return row;
-  });
-
-  return matrix;
-}
-
-function buildSignificanceCDF(sources: Source[]): SignificanceCDFPoint[] {
-  if (sources.length === 0) return [];
-
-  const sigs = sources.map(sourceSignificance).sort((a, b) => a - b);
-
-  const points: SignificanceCDFPoint[] = [];
-  const step = Math.max(1, Math.floor(sigs.length / 30));
-
-  for (let i = 0; i < sigs.length; i += step) {
-    const sig = sigs[i];
-    const cumulative = i + 1;
-    points.push({
-      significance: round(sig, 2),
-      cumulative,
-      percentage: round((cumulative / sigs.length) * 100, 1)
-    });
-  }
-
-  if (points[points.length - 1]?.cumulative !== sigs.length) {
-    const lastSig = sigs[sigs.length - 1];
-    points.push({
-      significance: round(lastSig, 2),
-      cumulative: sigs.length,
-      percentage: 100
-    });
-  }
-
-  return points;
-}
-
-function buildTopSourcesBubbleData(sources: Source[]): TopSourcesBubblePoint[] {
-  return buildScatterPoints(sources)
-    .slice(0, 20)
-    .map((point) => ({
-      name: point.name,
-      catalog: point.catalog,
-      significance: point.significance,
-      flux: point.flux1000,
-      confidence: point.confidence,
-      score: point.score,
-      catalogCount: point.catalogCount
-    }));
-}
-
 export async function fetchSourceAnalytics(
   selectedCatalogs: CatalogName[]
 ): Promise<SourceAnalyticsData> {
@@ -603,12 +488,6 @@ export async function fetchSourceAnalytics(
   const scatterPoints = buildScatterPoints(filteredSources);
   const topSources = buildTopSources(filteredSources);
   const { topClasses, rows: classMixRows } = buildClassMixRows(filteredSources);
-  const significanceDistribution =
-    buildSignificanceDistribution(filteredSources);
-  const crossCatalogOverlapMatrix =
-    buildCrossCatalogOverlapMatrix(filteredSources);
-  const significanceCDF = buildSignificanceCDF(filteredSources);
-  const topSourcesBubble = buildTopSourcesBubbleData(filteredSources);
 
   const headlineMetrics: SourceHeadlineMetrics = {
     samples: filteredSources.length,
@@ -625,6 +504,24 @@ export async function fetchSourceAnalytics(
     )
   };
 
+  // Fetch server-side histogram (if available) to avoid heavy client aggregation
+  let significanceHistogram:
+    | SourceAnalyticsData["significanceHistogram"]
+    | undefined = undefined;
+  try {
+    const params = new URLSearchParams();
+    for (const c of selectedCatalogs) params.append("catalog", c);
+    const resp = await fetch(`/api/sources/analytics/?${params.toString()}`);
+    if (resp.ok) {
+      const json = await resp.json();
+      if (json && json.significanceHistogram) {
+        significanceHistogram = json.significanceHistogram;
+      }
+    }
+  } catch {
+    // ignore; histogram optional
+  }
+
   return {
     sources: filteredSources,
     headlineMetrics,
@@ -633,12 +530,82 @@ export async function fetchSourceAnalytics(
     topSources,
     classMixRows,
     topClasses,
-    significanceDistribution,
-    crossCatalogOverlapMatrix,
-    significanceCDF,
-    topSourcesBubble,
+    significanceHistogram,
     radarComparison: buildRadarComparison(catalogComparison)
   };
+}
+
+export interface SourceMapPoint {
+  id: string;
+  unified_name: string;
+  ra: number;
+  dec: number;
+  primary_catalog: CatalogName;
+  created_at: string;
+  discovery_date: string | null;
+  catalog_count: number;
+  avg_confidence: number | null;
+  best_confidence: number | null;
+  source_class: string | null;
+  significance: number | null;
+  flux1000: number | null;
+  spectral_index: number | null;
+  associated_name: string | null;
+  discovery_method: string | null;
+}
+
+export interface SourceAnalyticsMapFilters {
+  catalogs: CatalogName[];
+  search?: string;
+  discoveryDateStart?: string;
+  discoveryDateEnd?: string;
+  raMin?: number;
+  raMax?: number;
+  decMin?: number;
+  decMax?: number;
+  significanceMin?: number;
+  significanceMax?: number;
+  fluxMin?: number;
+  fluxMax?: number;
+  ra?: number;
+  dec?: number;
+  radius?: number;
+}
+
+interface SourceAnalyticsMapPage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SourceMapPoint[];
+  spatialBounds?: {
+    raMin: number | null;
+    raMax: number | null;
+    decMin: number | null;
+    decMax: number | null;
+  };
+  dateBounds?: {
+    start: string | null;
+    end: string | null;
+  };
+  catalogDistribution?: Record<string, number>;
+  filtersApplied?: Record<string, unknown>;
+}
+
+export interface SourceAnalyticsMapData {
+  count: number;
+  points: SourceMapPoint[];
+  spatialBounds: {
+    raMin: number | null;
+    raMax: number | null;
+    decMin: number | null;
+    decMax: number | null;
+  };
+  dateBounds: {
+    start: string | null;
+    end: string | null;
+  };
+  catalogDistribution: Record<string, number>;
+  filtersApplied: Record<string, unknown>;
 }
 
 export function buildAnalyticsGroupRows(
@@ -646,4 +613,109 @@ export function buildAnalyticsGroupRows(
   groupBy: GroupByDimension
 ): SourceGroupingRow[] {
   return buildGroupingRows(sources, groupBy);
+}
+
+function appendNumericFilter(
+  query: URLSearchParams,
+  key: string,
+  value: number | undefined
+) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    query.set(key, String(value));
+  }
+}
+
+function buildMapQuery(
+  filters: SourceAnalyticsMapFilters,
+  page: number
+): string {
+  const query = new URLSearchParams();
+
+  query.set("page", String(page));
+  query.set("page_size", "1000");
+
+  for (const catalog of filters.catalogs) {
+    query.append("catalog", catalog);
+  }
+
+  if (filters.search) {
+    query.set("search", filters.search);
+  }
+
+  if (filters.discoveryDateStart) {
+    query.set("discovery_date_start", filters.discoveryDateStart);
+  }
+
+  if (filters.discoveryDateEnd) {
+    query.set("discovery_date_end", filters.discoveryDateEnd);
+  }
+
+  appendNumericFilter(query, "ra_min", filters.raMin);
+  appendNumericFilter(query, "ra_max", filters.raMax);
+  appendNumericFilter(query, "dec_min", filters.decMin);
+  appendNumericFilter(query, "dec_max", filters.decMax);
+  appendNumericFilter(query, "significance_min", filters.significanceMin);
+  appendNumericFilter(query, "significance_max", filters.significanceMax);
+  appendNumericFilter(query, "flux_min", filters.fluxMin);
+  appendNumericFilter(query, "flux_max", filters.fluxMax);
+  appendNumericFilter(query, "ra", filters.ra);
+  appendNumericFilter(query, "dec", filters.dec);
+  appendNumericFilter(query, "radius", filters.radius);
+
+  return query.toString();
+}
+
+export async function fetchSourceAnalyticsMap(
+  filters: SourceAnalyticsMapFilters
+): Promise<SourceAnalyticsMapData> {
+  let page = 1;
+  const points: SourceMapPoint[] = [];
+  let count = 0;
+  let spatialBounds: SourceAnalyticsMapData["spatialBounds"] = {
+    raMin: null,
+    raMax: null,
+    decMin: null,
+    decMax: null
+  };
+  let dateBounds: SourceAnalyticsMapData["dateBounds"] = {
+    start: null,
+    end: null
+  };
+  let catalogDistribution: Record<string, number> = {};
+  let filtersApplied: Record<string, unknown> = {};
+
+  while (true) {
+    const query = buildMapQuery(filters, page);
+    const response = await fetch(
+      `${API_BASE_URL}/sources/analytics_map/?${query}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = (await response.json()) as SourceAnalyticsMapPage;
+
+    count = payload.count;
+    points.push(...payload.results);
+    spatialBounds = payload.spatialBounds ?? spatialBounds;
+    dateBounds = payload.dateBounds ?? dateBounds;
+    catalogDistribution = payload.catalogDistribution ?? catalogDistribution;
+    filtersApplied = payload.filtersApplied ?? filtersApplied;
+
+    if (!payload.next) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return {
+    count,
+    points,
+    spatialBounds,
+    dateBounds,
+    catalogDistribution,
+    filtersApplied
+  };
 }

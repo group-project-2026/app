@@ -6,13 +6,9 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  Line,
-  LineChart,
-  Scatter,
-  ScatterChart,
-  Tooltip,
   XAxis,
-  YAxis
+  YAxis,
+  Tooltip
 } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
@@ -52,9 +48,9 @@ import {
   SOURCE_CATALOGS,
   SOURCE_CATALOG_META,
   type GroupByDimension,
-  type SourceAnalyticsData,
-  type TopSourcesBubblePoint
+  type SourceAnalyticsData
 } from "./api";
+import { CatalogSkyMap } from "./CatalogSkyMap";
 
 const GROUPING_OPTIONS_KEYS: Array<{
   value: GroupByDimension;
@@ -203,12 +199,6 @@ export function CatalogAnalyticsPage() {
     () => analyticsData?.topClasses ?? [],
     [analyticsData?.topClasses]
   );
-  const significanceDistribution =
-    analyticsData?.significanceDistribution ?? [];
-  const crossCatalogOverlapMatrix =
-    analyticsData?.crossCatalogOverlapMatrix ?? [];
-  const significanceCDF = analyticsData?.significanceCDF ?? [];
-  const topSourcesBubble = analyticsData?.topSourcesBubble ?? [];
 
   const catalogComparisonConfig = useMemo<ChartConfig>(
     () => ({
@@ -242,35 +232,48 @@ export function CatalogAnalyticsPage() {
     [topClasses, t]
   );
 
-  const significanceDistributionConfig = useMemo<ChartConfig>(
-    () => ({
-      count: {
-        label: t("analytics.significanceDistributionCount"),
-        color: "#2A9D8F"
-      }
-    }),
-    [t]
-  );
+  const significanceHistogram = analyticsData?.significanceHistogram;
 
-  const significanceCDFConfig = useMemo<ChartConfig>(
-    () => ({
-      percentage: {
-        label: t("analytics.cdfPercentage"),
-        color: "#2A9D8F"
-      }
-    }),
-    [t]
-  );
+  const histogramBins = useMemo(() => {
+    if (!significanceHistogram)
+      return [] as Array<{ label: string; edges: [number, number] }>;
+    const edges = significanceHistogram.edges;
+    const bins: Array<{ label: string; edges: [number, number] }> = [];
+    for (let i = 0; i < edges.length - 1; i++) {
+      const lo = edges[i];
+      const hi = edges[i + 1];
+      bins.push({
+        label: `${lo.toExponential(1)}-${hi.toExponential(1)}`,
+        edges: [lo, hi]
+      });
+    }
+    return bins;
+  }, [significanceHistogram]);
 
-  const topSourcesBubbleConfig = useMemo<ChartConfig>(
-    () => ({
-      score: {
-        label: t("analytics.bubbleScore"),
-        color: "#2A9D8F"
+  const histogramChartConfig = useMemo<ChartConfig>(() => {
+    const cfg: ChartConfig = {};
+    for (const cat of SOURCE_CATALOGS) {
+      cfg[cat] = {
+        label: SOURCE_CATALOG_META[cat].label,
+        color: SOURCE_CATALOG_META[cat].color
+      };
+    }
+    return cfg;
+  }, []);
+
+  const histogramCombinedData = useMemo(() => {
+    if (!significanceHistogram) return [];
+    const per = significanceHistogram.perCatalog || {};
+    const bins = histogramBins;
+    return bins.map((b, idx) => {
+      const row: Record<string, string | number> = { bin: b.label };
+      for (const cat of SOURCE_CATALOGS) {
+        const catalogEntry = per[cat];
+        row[cat] = catalogEntry?.bins?.[idx]?.count ?? 0;
       }
-    }),
-    [t]
-  );
+      return row;
+    });
+  }, [significanceHistogram, histogramBins]);
 
   const toggleCatalog = (catalog: CatalogName) => {
     setSelectedCatalogs((previous) => {
@@ -330,6 +333,10 @@ export function CatalogAnalyticsPage() {
             </CardHeader>
           </Card>
         ) : null}
+
+        <section className="grid gap-6">
+          <CatalogSkyMap selectedCatalogs={selectedCatalogs} />
+        </section>
 
         <Card>
           <CardHeader>
@@ -491,7 +498,7 @@ export function CatalogAnalyticsPage() {
           </CardContent>
         </Card>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="gap-6">
           <Card>
             <CardHeader>
               <CardTitle>{t("analytics.catalogComparison")}</CardTitle>
@@ -536,7 +543,7 @@ export function CatalogAnalyticsPage() {
           </Card>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="gap-6">
           <Card>
             <CardHeader>
               <CardTitle>{t("analytics.catalogCoverage")}</CardTitle>
@@ -575,7 +582,7 @@ export function CatalogAnalyticsPage() {
           </Card>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="gap-6">
           <Card>
             <CardHeader>
               <CardTitle>{t("analytics.classMixTitle")}</CardTitle>
@@ -627,203 +634,44 @@ export function CatalogAnalyticsPage() {
           </Card>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {t("analytics.significanceDistributionTitle")}
-              </CardTitle>
-              <CardDescription>
-                {t("analytics.significanceDistributionDescription")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={significanceDistributionConfig}>
-                <BarChart
-                  data={significanceDistribution}
-                  margin={{ left: 8, right: 8 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="bin" />
-                  <YAxis width={48} />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        valueFormatter={(value) => formatFloat(value, 0)}
-                      />
-                    }
-                  />
-                  <Legend />
-                  <Bar dataKey="count" fill="var(--color-count)" />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("analytics.crossCatalogOverlapTitle")}</CardTitle>
-              <CardDescription>
-                {t("analytics.crossCatalogOverlapDescription")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        {t("analytics.tableColumns.catalog")}
-                      </TableHead>
-                      {selectedCatalogs.map((cat) => (
-                        <TableHead key={cat} className="text-right">
-                          {SOURCE_CATALOG_META[cat].label}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {crossCatalogOverlapMatrix.map((row) => (
-                      <TableRow key={row.catalog}>
-                        <TableCell className="font-medium">
-                          {formatCatalogLabel(String(row.catalog))}
-                        </TableCell>
-                        {selectedCatalogs.map((cat) => (
-                          <TableCell
-                            key={`${row.catalog}-${cat}`}
-                            className="text-right"
-                          >
-                            {row[cat] ?? 0}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("analytics.significanceCDFTitle")}</CardTitle>
-              <CardDescription>
-                {t("analytics.significanceCDFDescription")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={significanceCDFConfig}>
-                <LineChart
-                  data={significanceCDF}
-                  margin={{ left: 8, right: 8 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="significance"
-                    label={{ value: "Significance", offset: 0 }}
-                  />
-                  <YAxis
-                    label={{
-                      value: "Cumulative %",
-                      angle: -90,
-                      position: "insideLeft"
-                    }}
-                  />
-                  <Tooltip
-                    content={
-                      <ChartTooltipContent
-                        valueFormatter={(value) => formatFloat(value, 1)}
-                      />
-                    }
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="percentage"
-                    stroke="var(--color-percentage)"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </section>
-
         <section className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>{t("analytics.topSourcesBubbleTitle")}</CardTitle>
-              <CardDescription>
-                {t("analytics.topSourcesBubbleDescription")}
-              </CardDescription>
+              <div className="flex items-start justify-between w-full">
+                <div>
+                  <CardTitle>
+                    {t("analytics.significanceHistogramTitle")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("analytics.significanceHistogramDescription")}
+                  </CardDescription>
+                </div>
+                {/* Facets mode removed — showing overlap histogram only */}
+              </div>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={topSourcesBubbleConfig}>
-                <ScatterChart
-                  data={topSourcesBubble}
+              <ChartContainer config={histogramChartConfig}>
+                <BarChart
+                  data={histogramCombinedData}
                   margin={{ left: 8, right: 8 }}
                 >
                   <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="significance"
-                    type="number"
-                    label={{ value: "Significance", offset: 0 }}
-                  />
-                  <YAxis
-                    dataKey="flux"
-                    type="number"
-                    label={{
-                      value: "Flux1000",
-                      angle: -90,
-                      position: "insideLeft"
-                    }}
-                  />
+                  <XAxis dataKey="bin" tick={{ fontSize: 11 }} />
+                  <YAxis width={56} />
                   <Tooltip
-                    cursor={{ strokeDasharray: "3 3" }}
-                    content={({ active, payload }) => {
-                      if (active && payload?.[0]?.payload) {
-                        const data = payload[0]
-                          .payload as TopSourcesBubblePoint;
-                        return (
-                          <div className="bg-background border border-border rounded p-2 text-sm">
-                            <p className="font-semibold">{data.name}</p>
-                            <p>
-                              {t("analytics.bubbleSignificance")}:{" "}
-                              {formatFloat(data.significance, 2)}
-                            </p>
-                            <p>
-                              {t("analytics.bubbleFlux")}:{" "}
-                              {formatFlux(data.flux)}
-                            </p>
-                            <p>
-                              {t("analytics.bubbleConfidence")}:{" "}
-                              {formatFloat(data.confidence, 3)}
-                            </p>
-                            <p>
-                              {t("analytics.bubbleScore")}:{" "}
-                              {formatFloat(data.score, 1)}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
+                    formatter={(value, name) => [String(value), String(name)]}
                   />
-                  {selectedCatalogs.map((cat, idx) => (
-                    <Scatter
+                  <Legend />
+                  {selectedCatalogs.map((cat) => (
+                    <Bar
                       key={cat}
-                      dataKey="score"
-                      data={topSourcesBubble.filter((p) => p.catalog === cat)}
-                      name={SOURCE_CATALOG_META[cat].label}
-                      fill={CLASS_COLORS[idx % CLASS_COLORS.length]}
+                      dataKey={cat}
+                      fill={`var(--color-${cat})`}
+                      fillOpacity={0.6}
                     />
                   ))}
-                </ScatterChart>
-                \n{" "}
+                </BarChart>
               </ChartContainer>
-              \n{" "}
             </CardContent>
           </Card>
         </section>
