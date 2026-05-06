@@ -1,18 +1,14 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Legend,
-  Line,
-  LineChart,
-  PolarAngleAxis,
-  PolarGrid,
-  Radar,
-  RadarChart,
   XAxis,
-  YAxis
+  YAxis,
+  Tooltip
 } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
@@ -45,30 +41,47 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import type { CatalogName } from "../sources/types";
 import {
-  CATALOG_ANALYTICS_DATA,
-  CATALOG_KEYS,
-  CATALOG_META,
-  type CatalogKey
-} from "./catalogAnalyticsData";
-import {
-  aggregateByDimension,
-  buildCatalogRadarComparison,
-  buildDetectabilityComparison,
-  buildEmissionComparison,
-  buildEmissionTrend,
-  buildSignificanceComparison,
-  calculateHeadlineMetrics,
-  getCatalogLabel,
-  type GroupByDimension
-} from "./aggregations";
+  buildAnalyticsGroupRows,
+  fetchSourceAnalytics,
+  SOURCE_CATALOGS,
+  SOURCE_CATALOG_META,
+  type GroupByDimension,
+  type SourceAnalyticsData
+} from "./api";
+import { CatalogSkyMap } from "./CatalogSkyMap";
 
-const GROUPING_OPTIONS_KEYS: Array<{ value: GroupByDimension; translationKey: string }> = [
+const GROUPING_OPTIONS_KEYS: Array<{
+  value: GroupByDimension;
+  translationKey: string;
+}> = [
   { value: "catalog", translationKey: "analytics.groupingOptions.catalog" },
-  { value: "year", translationKey: "analytics.groupingOptions.year" },
-  { value: "energyBand", translationKey: "analytics.groupingOptions.energyBand" },
-  { value: "skyRegion", translationKey: "analytics.groupingOptions.skyRegion" },
-  { value: "sourceType", translationKey: "analytics.groupingOptions.sourceType" }
+  {
+    value: "sourceClass",
+    translationKey: "analytics.groupingOptions.sourceClass"
+  },
+  {
+    value: "discoveryMethod",
+    translationKey: "analytics.groupingOptions.discoveryMethod"
+  },
+  {
+    value: "confidenceBand",
+    translationKey: "analytics.groupingOptions.confidenceBand"
+  },
+  {
+    value: "catalogCountBand",
+    translationKey: "analytics.groupingOptions.catalogCountBand"
+  }
+];
+
+const CLASS_COLORS = [
+  "#2A9D8F",
+  "#E76F51",
+  "#577590",
+  "#F9C74F",
+  "#9B5DE5",
+  "#00BBF9"
 ];
 
 function formatFlux(value: number | string | undefined): string {
@@ -102,141 +115,167 @@ function formatFloat(value: number | string | undefined, digits = 2): string {
 }
 
 function formatCatalogLabel(catalog: string): string {
-  if ((CATALOG_KEYS as string[]).includes(catalog)) {
-    return getCatalogLabel(catalog as CatalogKey);
+  if (catalog in SOURCE_CATALOG_META) {
+    return SOURCE_CATALOG_META[catalog as CatalogName].label;
   }
 
   return catalog;
 }
 
+function formatGroupLabel(
+  groupBy: GroupByDimension,
+  value: string,
+  t: (key: string) => string
+): string {
+  if (groupBy === "catalog") {
+    return formatCatalogLabel(value);
+  }
+
+  if (groupBy === "confidenceBand") {
+    return t(`analytics.confidenceBands.${value}`);
+  }
+
+  if (groupBy === "catalogCountBand") {
+    return t(`analytics.catalogCountBands.${value}`);
+  }
+
+  return value;
+}
+
+function buildClassMixConfig(
+  topClasses: string[],
+  t: (key: string) => string
+): ChartConfig {
+  const config: ChartConfig = {
+    Other: {
+      label: t("analytics.other"),
+      color: "#B8B8B8"
+    }
+  };
+
+  topClasses.forEach((className, index) => {
+    config[className] = {
+      label: className,
+      color: CLASS_COLORS[index % CLASS_COLORS.length]
+    };
+  });
+
+  return config;
+}
+
 export function CatalogAnalyticsPage() {
   const { t } = useTranslation();
   const [selectedCatalogs, setSelectedCatalogs] =
-    useState<CatalogKey[]>(CATALOG_KEYS);
+    useState<CatalogName[]>(SOURCE_CATALOGS);
   const [groupBy, setGroupBy] = useState<GroupByDimension>("catalog");
 
-  const filteredObservations = useMemo(
-    () =>
-      CATALOG_ANALYTICS_DATA.filter((item) =>
-        selectedCatalogs.includes(item.catalog)
-      ),
-    [selectedCatalogs]
-  );
+  const analyticsQuery = useQuery<SourceAnalyticsData, Error>({
+    queryKey: ["source-analytics", selectedCatalogs],
+    queryFn: () => fetchSourceAnalytics(selectedCatalogs),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData
+  });
 
-  const headlineMetrics = useMemo(
-    () => calculateHeadlineMetrics(filteredObservations),
-    [filteredObservations]
+  const analyticsData = analyticsQuery.data;
+  const sources = useMemo(
+    () => analyticsData?.sources ?? [],
+    [analyticsData?.sources]
   );
-
-  const emissionTrend = useMemo(
-    () => buildEmissionTrend(filteredObservations, selectedCatalogs),
-    [filteredObservations, selectedCatalogs]
-  );
-
-  const emissionComparison = useMemo(
-    () => buildEmissionComparison(filteredObservations),
-    [filteredObservations]
-  );
-
-  const significanceComparison = useMemo(
-    () => buildSignificanceComparison(filteredObservations),
-    [filteredObservations]
-  );
-
-  const detectabilityComparison = useMemo(
-    () => buildDetectabilityComparison(filteredObservations),
-    [filteredObservations]
-  );
-
   const groupingRows = useMemo(
-    () => aggregateByDimension(filteredObservations, groupBy),
-    [filteredObservations, groupBy]
+    () => buildAnalyticsGroupRows(sources, groupBy),
+    [sources, groupBy]
+  );
+  const headlineMetrics = analyticsData?.headlineMetrics ?? {
+    samples: 0,
+    avgSignificance: 0,
+    avgFlux1000: 0,
+    avgConfidence: 0,
+    multiCatalogShare: 0
+  };
+  const catalogComparison = analyticsData?.catalogComparison ?? [];
+  const topSources = analyticsData?.topSources ?? [];
+  const classMixRows = analyticsData?.classMixRows ?? [];
+  const topClasses = useMemo(
+    () => analyticsData?.topClasses ?? [],
+    [analyticsData?.topClasses]
   );
 
-  const radarRawData = useMemo(
-    () => buildCatalogRadarComparison(filteredObservations),
-    [filteredObservations]
-  );
-
-  const radarMetrics = useMemo(() => {
-    const byCatalog = new Map(radarRawData.map((item) => [item.catalog, item]));
-
-    const entries = [
-      { key: "emissionIndex", label: t("analytics.radarMetrics.emissionIndex") },
-      { key: "significanceIndex", label: t("analytics.radarMetrics.significanceIndex") },
-      { key: "detectabilityIndex", label: t("analytics.radarMetrics.detectabilityIndex") },
-      { key: "highDetectabilityShare", label: t("analytics.radarMetrics.highDetectabilityShare") }
-    ] as const;
-
-    return entries.map((entry) => {
-      const row: { metric: string } & Partial<Record<CatalogKey, number>> = {
-        metric: entry.label
-      };
-
-      for (const catalog of selectedCatalogs) {
-        const sourceRow = byCatalog.get(catalog);
-        row[catalog] = sourceRow ? sourceRow[entry.key] : 0;
-      }
-
-      return row;
-    });
-  }, [radarRawData, selectedCatalogs, t]);
-
-  const catalogChartConfig = useMemo(() => {
-    const config: ChartConfig = {};
-
-    for (const catalog of selectedCatalogs) {
-      config[catalog] = {
-        label: CATALOG_META[catalog].label,
-        color: CATALOG_META[catalog].color
-      };
-    }
-
-    return config;
-  }, [selectedCatalogs]);
-
-  const significanceConfig = useMemo<ChartConfig>(
+  const catalogComparisonConfig = useMemo<ChartConfig>(
     () => ({
-      avgSignificance: {
-        label: t("analytics.sigmaLabels.avgSigma"),
-        color: "#4D908E"
-      },
-      p95Significance: {
-        label: t("analytics.sigmaLabels.percentile95"),
-        color: "#F9844A"
-      },
-      peakSignificance: {
-        label: t("analytics.sigmaLabels.maxSigma"),
-        color: "#F94144"
-      }
-    }),
-    [t]
-  );
-
-  const detectabilityConfig = useMemo<ChartConfig>(
-    () => ({
-      low: { label: t("analytics.detectabilityCategories.low"), color: "#577590" },
-      medium: { label: t("analytics.detectabilityCategories.medium"), color: "#F9C74F" },
-      high: { label: t("analytics.detectabilityCategories.high"), color: "#43AA8B" }
-    }),
-    [t]
-  );
-
-  const emissionComparisonConfig = useMemo<ChartConfig>(
-    () => ({
-      avgEmissionFlux: {
-        label: t("analytics.emissionLabels.avgEmission"),
+      scienceScore: {
+        label: t("analytics.comparison.scienceScore"),
         color: "#2A9D8F"
       },
-      peakEmissionFlux: {
-        label: t("analytics.emissionLabels.peakEmission"),
+      multiCatalogShare: {
+        label: t("analytics.comparison.multiCatalogShare"),
         color: "#E76F51"
       }
     }),
     [t]
   );
 
-  const toggleCatalog = (catalog: CatalogKey) => {
+  const catalogCoverageConfig = useMemo<ChartConfig>(
+    () => ({
+      sampleCount: {
+        label: t("analytics.coverageMetrics.sampleCount"),
+        color: "#577590"
+      },
+      classDiversity: {
+        label: t("analytics.coverageMetrics.classDiversity"),
+        color: "#F9C74F"
+      }
+    }),
+    [t]
+  );
+  const classMixConfig = useMemo(
+    () => buildClassMixConfig(topClasses, t),
+    [topClasses, t]
+  );
+
+  const significanceHistogram = analyticsData?.significanceHistogram;
+
+  const histogramBins = useMemo(() => {
+    if (!significanceHistogram)
+      return [] as Array<{ label: string; edges: [number, number] }>;
+    const edges = significanceHistogram.edges;
+    const bins: Array<{ label: string; edges: [number, number] }> = [];
+    for (let i = 0; i < edges.length - 1; i++) {
+      const lo = edges[i];
+      const hi = edges[i + 1];
+      bins.push({
+        label: `${lo.toExponential(1)}-${hi.toExponential(1)}`,
+        edges: [lo, hi]
+      });
+    }
+    return bins;
+  }, [significanceHistogram]);
+
+  const histogramChartConfig = useMemo<ChartConfig>(() => {
+    const cfg: ChartConfig = {};
+    for (const cat of SOURCE_CATALOGS) {
+      cfg[cat] = {
+        label: SOURCE_CATALOG_META[cat].label,
+        color: SOURCE_CATALOG_META[cat].color
+      };
+    }
+    return cfg;
+  }, []);
+
+  const histogramCombinedData = useMemo(() => {
+    if (!significanceHistogram) return [];
+    const per = significanceHistogram.perCatalog || {};
+    const bins = histogramBins;
+    return bins.map((b, idx) => {
+      const row: Record<string, string | number> = { bin: b.label };
+      for (const cat of SOURCE_CATALOGS) {
+        const catalogEntry = per[cat];
+        row[cat] = catalogEntry?.bins?.[idx]?.count ?? 0;
+      }
+      return row;
+    });
+  }, [significanceHistogram, histogramBins]);
+
+  const toggleCatalog = (catalog: CatalogName) => {
     setSelectedCatalogs((previous) => {
       if (previous.includes(catalog)) {
         if (previous.length === 1) {
@@ -250,8 +289,14 @@ export function CatalogAnalyticsPage() {
     });
   };
 
-  const selectedGroupingLabel =
-    t(GROUPING_OPTIONS_KEYS.find((item) => item.value === groupBy)?.translationKey ?? "analytics.groupingOptions.catalog");
+  const selectedGroupingLabel = t(
+    GROUPING_OPTIONS_KEYS.find((item) => item.value === groupBy)
+      ?.translationKey ?? "analytics.groupingOptions.catalog"
+  );
+
+  const selectedCatalogComparison = catalogComparison.filter((row) =>
+    selectedCatalogs.includes(row.catalog)
+  );
 
   return (
     <main className="min-h-screen w-full">
@@ -265,6 +310,34 @@ export function CatalogAnalyticsPage() {
           </p>
         </header>
 
+        {analyticsQuery.isLoading ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.loadingTitle")}</CardTitle>
+              <CardDescription>
+                {t("analytics.loadingDescription")}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
+
+        {analyticsQuery.isError ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.errorTitle")}</CardTitle>
+              <CardDescription>
+                {analyticsQuery.error instanceof Error
+                  ? analyticsQuery.error.message
+                  : t("analytics.errorDescription")}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
+
+        <section className="grid gap-6">
+          <CatalogSkyMap selectedCatalogs={selectedCatalogs} />
+        </section>
+
         <Card>
           <CardHeader>
             <CardTitle>{t("analytics.analysisScope")}</CardTitle>
@@ -274,7 +347,7 @@ export function CatalogAnalyticsPage() {
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="flex flex-wrap gap-2">
-              {CATALOG_KEYS.map((catalog) => {
+              {SOURCE_CATALOGS.map((catalog) => {
                 const active = selectedCatalogs.includes(catalog);
 
                 return (
@@ -284,7 +357,7 @@ export function CatalogAnalyticsPage() {
                     variant={active ? "default" : "outline"}
                     onClick={() => toggleCatalog(catalog)}
                   >
-                    {CATALOG_META[catalog].label}
+                    {SOURCE_CATALOG_META[catalog].label}
                   </Button>
                 );
               })}
@@ -294,7 +367,9 @@ export function CatalogAnalyticsPage() {
               <CardHeader>
                 <CardTitle>{t("analytics.groupingsTitle")}</CardTitle>
                 <CardDescription>
-                  {t("analytics.groupingsDescription", { grouping: selectedGroupingLabel })}
+                  {t("analytics.groupingsDescription", {
+                    grouping: selectedGroupingLabel
+                  })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -302,35 +377,45 @@ export function CatalogAnalyticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("analytics.tableColumns.group")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.samples")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.avgEmission")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.medianEmission")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.avgSigma")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.peakSigma")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.avgDetectability")}</TableHead>
-                      <TableHead>{t("analytics.tableColumns.highDetectabilityPercent")}</TableHead>
+                      <TableHead>
+                        {t("analytics.tableColumns.samples")}
+                      </TableHead>
+                      <TableHead>
+                        {t("analytics.tableColumns.avgEmission")}
+                      </TableHead>
+                      <TableHead>
+                        {t("analytics.tableColumns.avgSigma")}
+                      </TableHead>
+                      <TableHead>
+                        {t("analytics.tableColumns.avgConfidence")}
+                      </TableHead>
+                      <TableHead>
+                        {t("analytics.tableColumns.avgCatalogCount")}
+                      </TableHead>
+                      <TableHead>
+                        {t("analytics.tableColumns.multiCatalogPercent")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {groupingRows.map((row) => (
                       <TableRow key={row.group}>
-                        <TableCell>{formatCatalogLabel(row.group)}</TableCell>
-                        <TableCell>{row.sampleCount}</TableCell>
-                        <TableCell>{formatFlux(row.avgEmissionFlux)}</TableCell>
                         <TableCell>
-                          {formatFlux(row.medianEmissionFlux)}
+                          {formatGroupLabel(groupBy, row.group, t)}
                         </TableCell>
+                        <TableCell>{row.sampleCount}</TableCell>
+                        <TableCell>{formatFlux(row.avgFlux1000)}</TableCell>
                         <TableCell>
                           {formatFloat(row.avgSignificance, 2)}
                         </TableCell>
                         <TableCell>
-                          {formatFloat(row.peakSignificance, 2)}
+                          {formatFloat(row.avgConfidence, 3)}
                         </TableCell>
                         <TableCell>
-                          {formatFloat(row.avgDetectability, 1)}
+                          {formatFloat(row.avgCatalogCount, 2)}
                         </TableCell>
                         <TableCell>
-                          {formatFloat(row.highDetectabilityShare, 1)}%
+                          {formatFloat(row.multiCatalogShare, 1)}%
                         </TableCell>
                       </TableRow>
                     ))}
@@ -339,34 +424,52 @@ export function CatalogAnalyticsPage() {
               </CardContent>
             </Card>
 
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>{t("analytics.tableColumns.samples")}</CardDescription>
+                  <CardDescription>
+                    {t("analytics.metrics.samples")}
+                  </CardDescription>
                   <CardTitle>{headlineMetrics.samples}</CardTitle>
                 </CardHeader>
               </Card>
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>{t("analytics.metrics.avgEmission")}</CardDescription>
+                  <CardDescription>
+                    {t("analytics.metrics.avgSigma")}
+                  </CardDescription>
                   <CardTitle>
-                    {formatFlux(headlineMetrics.avgEmissionFlux)}
+                    {formatFloat(headlineMetrics.avgSignificance, 2)}
                   </CardTitle>
                 </CardHeader>
               </Card>
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>{t("analytics.metrics.avgSigma")}</CardDescription>
+                  <CardDescription>
+                    {t("analytics.metrics.avgFlux")}
+                  </CardDescription>
                   <CardTitle>
-                    {formatFloat(headlineMetrics.avgSignificance)}
+                    {formatFlux(headlineMetrics.avgFlux1000)}
                   </CardTitle>
                 </CardHeader>
               </Card>
               <Card size="sm">
                 <CardHeader>
-                  <CardDescription>{t("analytics.metrics.highDetectability")}</CardDescription>
+                  <CardDescription>
+                    {t("analytics.metrics.avgConfidence")}
+                  </CardDescription>
                   <CardTitle>
-                    {formatFloat(headlineMetrics.highDetectabilityShare, 1)}%
+                    {formatFloat(headlineMetrics.avgConfidence, 3)}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              <Card size="sm">
+                <CardHeader>
+                  <CardDescription>
+                    {t("analytics.metrics.multiCatalogShare")}
+                  </CardDescription>
+                  <CardTitle>
+                    {formatFloat(headlineMetrics.multiCatalogShare, 1)}%
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -395,61 +498,18 @@ export function CatalogAnalyticsPage() {
           </CardContent>
         </Card>
 
-        <section className="grid gap-6 lg:grid-cols-2">
+        <section className="gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>{t("analytics.emissionTrend")}</CardTitle>
+              <CardTitle>{t("analytics.catalogComparison")}</CardTitle>
               <CardDescription>
-                {t("analytics.emissionTrendDescription")}
+                {t("analytics.catalogComparisonDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={catalogChartConfig}>
-                <LineChart data={emissionTrend} margin={{ left: 8, right: 8 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="year" />
-                  <YAxis
-                    tickFormatter={(value) => formatFlux(value)}
-                    width={72}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        valueFormatter={(value) => formatFlux(value)}
-                      />
-                    }
-                  />
-                  <Legend
-                    formatter={(value: string | number) =>
-                      formatCatalogLabel(String(value))
-                    }
-                  />
-                  {selectedCatalogs.map((catalog) => (
-                    <Line
-                      key={catalog}
-                      type="monotone"
-                      dataKey={catalog}
-                      stroke={`var(--color-${catalog})`}
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  ))}
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("analytics.emissionComparison")}</CardTitle>
-              <CardDescription>
-                {t("analytics.emissionComparisonDescription")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={emissionComparisonConfig}>
+              <ChartContainer config={catalogComparisonConfig}>
                 <BarChart
-                  data={emissionComparison}
+                  data={selectedCatalogComparison}
                   margin={{ left: 8, right: 8 }}
                 >
                   <CartesianGrid vertical={false} />
@@ -458,25 +518,158 @@ export function CatalogAnalyticsPage() {
                     tickFormatter={(value) => formatCatalogLabel(String(value))}
                   />
                   <YAxis
-                    tickFormatter={(value) => formatFlux(value)}
-                    width={72}
+                    tickFormatter={(value) => formatFloat(value, 0)}
+                    width={56}
                   />
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
-                        valueFormatter={(value) => formatFlux(value)}
+                        valueFormatter={(value) => formatFloat(value, 1)}
                       />
                     }
                   />
                   <Legend />
                   <Bar
-                    dataKey="avgEmissionFlux"
-                    fill="var(--color-avgEmissionFlux)"
+                    dataKey="scienceScore"
+                    fill="var(--color-scienceScore)"
                   />
                   <Bar
-                    dataKey="peakEmissionFlux"
-                    fill="var(--color-peakEmissionFlux)"
+                    dataKey="multiCatalogShare"
+                    fill="var(--color-multiCatalogShare)"
                   />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.catalogCoverage")}</CardTitle>
+              <CardDescription>
+                {t("analytics.catalogCoverageDescription")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={catalogCoverageConfig}>
+                <BarChart
+                  data={selectedCatalogComparison}
+                  margin={{ left: 8, right: 8 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="catalog"
+                    tickFormatter={(value) => formatCatalogLabel(String(value))}
+                  />
+                  <YAxis width={56} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        valueFormatter={(value) => formatFloat(value, 1)}
+                      />
+                    }
+                  />
+                  <Legend />
+                  <Bar dataKey="sampleCount" fill="var(--color-sampleCount)" />
+                  <Bar
+                    dataKey="classDiversity"
+                    fill="var(--color-classDiversity)"
+                  />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.classMixTitle")}</CardTitle>
+              <CardDescription>
+                {t("analytics.classMixDescription")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={classMixConfig}>
+                <BarChart data={classMixRows} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="catalog"
+                    tickFormatter={(value) => formatCatalogLabel(String(value))}
+                  />
+                  <YAxis width={48} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        valueFormatter={(value) => formatFloat(value, 0)}
+                      />
+                    }
+                  />
+                  <Legend />
+                  {topClasses.map((className) => (
+                    <Bar
+                      key={className}
+                      dataKey={className}
+                      stackId="classes"
+                      fill={`var(--color-${className})`}
+                    />
+                  ))}
+                  <Bar
+                    dataKey="Other"
+                    stackId="classes"
+                    fill="var(--color-Other)"
+                  />
+                </BarChart>
+              </ChartContainer>
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                {topClasses.map((className) => (
+                  <Badge key={className} variant="secondary">
+                    {className}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between w-full">
+                <div>
+                  <CardTitle>
+                    {t("analytics.significanceHistogramTitle")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("analytics.significanceHistogramDescription")}
+                  </CardDescription>
+                </div>
+                {/* Facets mode removed — showing overlap histogram only */}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={histogramChartConfig}>
+                <BarChart
+                  data={histogramCombinedData}
+                  margin={{ left: 8, right: 8 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="bin" tick={{ fontSize: 11 }} />
+                  <YAxis width={56} />
+                  <Tooltip
+                    formatter={(value, name) => [String(value), String(name)]}
+                  />
+                  <Legend />
+                  {selectedCatalogs.map((cat) => (
+                    <Bar
+                      key={cat}
+                      dataKey={cat}
+                      fill={`var(--color-${cat})`}
+                      fillOpacity={0.6}
+                    />
+                  ))}
                 </BarChart>
               </ChartContainer>
             </CardContent>
@@ -485,138 +678,54 @@ export function CatalogAnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{t("analytics.significancePlot")}</CardTitle>
+            <CardTitle>{t("analytics.topSourcesTitle")}</CardTitle>
             <CardDescription>
-              {t("analytics.significancePlotDescription")}
+              {t("analytics.topSourcesDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={significanceConfig}>
-              <BarChart
-                data={significanceComparison}
-                margin={{ left: 8, right: 8 }}
-              >
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="catalog"
-                  tickFormatter={(value) => formatCatalogLabel(String(value))}
-                />
-                <YAxis width={48} />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      valueFormatter={(value) => `${formatFloat(value, 2)} σ`}
-                    />
-                  }
-                />
-                <Legend />
-                <Bar
-                  dataKey="avgSignificance"
-                  fill="var(--color-avgSignificance)"
-                />
-                <Bar
-                  dataKey="p95Significance"
-                  fill="var(--color-p95Significance)"
-                />
-                <Bar
-                  dataKey="peakSignificance"
-                  fill="var(--color-peakSignificance)"
-                />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("analytics.catalogComparison")}</CardTitle>
-            <CardDescription>
-              {t("analytics.catalogComparisonDescription")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={catalogChartConfig}>
-              <RadarChart data={radarMetrics} outerRadius="70%">
-                <PolarGrid />
-                <PolarAngleAxis dataKey="metric" />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      valueFormatter={(value) => formatFloat(value, 1)}
-                    />
-                  }
-                />
-                <Legend
-                  formatter={(value: string | number) =>
-                    formatCatalogLabel(String(value))
-                  }
-                />
-                {selectedCatalogs.map((catalog) => (
-                  <Radar
-                    key={catalog}
-                    dataKey={catalog}
-                    stroke={`var(--color-${catalog})`}
-                    fill={`var(--color-${catalog})`}
-                    fillOpacity={0.18}
-                  />
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.sourceName")}
+                  </TableHead>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.catalog")}
+                  </TableHead>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.sourceClass")}
+                  </TableHead>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.significance")}
+                  </TableHead>
+                  <TableHead>{t("analytics.topSourcesColumns.flux")}</TableHead>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.confidence")}
+                  </TableHead>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.catalogCount")}
+                  </TableHead>
+                  <TableHead>
+                    {t("analytics.topSourcesColumns.score")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {topSources.map((row) => (
+                  <TableRow key={`${row.catalog}-${row.name}`}>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell>{formatCatalogLabel(row.catalog)}</TableCell>
+                    <TableCell>{row.sourceClass}</TableCell>
+                    <TableCell>{formatFloat(row.significance, 2)}</TableCell>
+                    <TableCell>{formatFlux(row.flux1000)}</TableCell>
+                    <TableCell>{formatFloat(row.confidence, 3)}</TableCell>
+                    <TableCell>{row.catalogCount}</TableCell>
+                    <TableCell>{formatFloat(row.score, 1)}</TableCell>
+                  </TableRow>
                 ))}
-              </RadarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("analytics.detectabilitySection")}</CardTitle>
-            <CardDescription>
-              {t("analytics.detectabilitySectionDescription")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ChartContainer config={detectabilityConfig}>
-              <BarChart
-                data={detectabilityComparison}
-                margin={{ left: 8, right: 8 }}
-              >
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="catalog"
-                  tickFormatter={(value) => formatCatalogLabel(String(value))}
-                />
-                <YAxis width={56} />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      valueFormatter={(value) => formatFloat(value, 0)}
-                    />
-                  }
-                />
-                <Legend />
-                <Bar
-                  dataKey="low"
-                  stackId="detectability"
-                  fill="var(--color-low)"
-                />
-                <Bar
-                  dataKey="medium"
-                  stackId="detectability"
-                  fill="var(--color-medium)"
-                />
-                <Bar
-                  dataKey="high"
-                  stackId="detectability"
-                  fill="var(--color-high)"
-                />
-              </BarChart>
-            </ChartContainer>
-
-            <div className="flex flex-wrap gap-2">
-              {detectabilityComparison.map((row) => (
-                <Badge key={row.catalog} variant="secondary">
-                  {formatCatalogLabel(row.catalog)}: avg {row.avgDetectability}
-                </Badge>
-              ))}
-            </div>
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
