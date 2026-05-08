@@ -13,31 +13,47 @@
     "instructions": "Przeciągnij aby orbitować · Przewiń aby przybliżyć · Prawy przycisk aby przesunąć · Kliknij punkt aby zobaczyć szczegóły",
     "filters": "Filtry",
     "legend": "Legenda",
+    "loading": "Ładowanie źródeł…",
+    "errorLoading": "Nie udało się załadować źródeł: {{message}}",
+    "pointsCount": "{{clusters}} klastrów · {{points}} punktów · {{shown}} z {{total}} źródeł",
+    "cluster": {
+      "tooltip_one": "{{count}} źródło",
+      "tooltip_few": "{{count}} źródła",
+      "tooltip_many": "{{count}} źródeł",
+      "tooltip_other": "{{count}} źródeł"
+    },
+    "focus": {
+      "label": "Obszar",
+      "count_one": "{{count}} źródło",
+      "count_few": "{{count}} źródła",
+      "count_many": "{{count}} źródeł",
+      "count_other": "{{count}} źródeł",
+      "exit": "Wyjdź z obszaru",
+      "exitHint": "Kliknij tło lub Esc, aby wrócić"
+    },
     "categories": {
-      "star": "Gwiazda",
-      "galaxy": "Galaktyka",
-      "nebula": "Mgławica",
-      "pulsar": "Pulsar",
-      "quasar": "Kwazar",
-      "blackHole": "Czarna dziura",
-      "planet": "Planeta",
-      "cluster": "Gromada"
+      "fermi": "Fermi-LAT",
+      "lhaaso": "LHAASO",
+      "hawc": "HAWC",
+      "tevcat": "TeVCat"
     }
   },
   "pointDetail": {
     "rightAscension": "Rektascensja",
     "declination": "Deklinacja",
-    "distance": "Odległość",
-    "magnitude": "Jasność",
-    "discoveredBy": "Odkryte przez",
-    "description": "Opis",
-    "observationNotes": "Notatki obserwacyjne",
-    "spectralAnalysis": "Analiza spektralna",
-    "chartPlaceholder": "Wykres zastępczy — rozkład energii spektralnej",
-    "angularPosition": "Pozycja kątowa",
-    "angularPlaceholder": "Zastępczy — współrzędne galaktyczne, kąt zenitalny, azymut",
-    "fluxEnergy": "Strumień i energia",
-    "fluxPlaceholder": "Zastępczy — wykres strumienia vs energia, dopasowanie prawa potęgowego"
+    "sourceClass": "Klasa źródła",
+    "catalogCount": "Liczba katalogów",
+    "identification": "Identyfikacja",
+    "primaryCatalog": "Katalog główny",
+    "associatedName": "Nazwa powiązana",
+    "discoveryMethod": "Metoda odkrycia",
+    "measurements": "Pomiary",
+    "significance": "Istotność",
+    "flux1000": "Flux1000",
+    "spectralIndex": "Indeks spektralny",
+    "confidence": "Pewność",
+    "bestConfidence": "Najlepsza pewność",
+    "avgConfidence": "Średnia pewność"
   },
   "sources": {
     "title": "Źródła promieniowania gamma",
@@ -113,64 +129,138 @@
   },
   "analytics": {
     "title": "Analityka katalogów",
-    "description": "Analityka dla katalogów Fermi, HAWC, LHAASO, NED, TeVCat i MAGIC: emisja, istotność statystyczna, porównania między katalogami, osobna sekcja detectability oraz groupingi i agregacje pod analizę.",
+    "description": "Porównuj realne rekordy źródeł między katalogami przez flux, istotność, pewność, nakładanie katalogów i miks klas źródeł.",
+    "loadingTitle": "Ładowanie danych analityki",
+    "loadingDescription": "Pobieranie rekordów źródeł z backend API.",
+    "errorTitle": "Analityka niedostępna",
+    "errorDescription": "Nie udało się załadować danych analityki.",
     "analysisScope": "Zakres analizy",
-    "analysisScopeDescription": "Wybierz katalogi i poziom agregacji do sekcji porównawczej.",
+    "analysisScopeDescription": "Wybierz katalogi i typ porównania dla dashboardu.",
     "groupingsTitle": "Groupingi i agregacje pod analizę",
-    "groupingsDescription": "Aktualny grouping: {{grouping}}. Tabela zbiorcza dla wybranego wymiaru analitycznego.",
+    "groupingsDescription": "Aktualny grouping: {{grouping}}. Tabela zbudowana z wybranych rekordów źródeł.",
     "groupingOptions": {
       "catalog": "Katalog",
-      "year": "Rok",
-      "energyBand": "Pasmo energii",
-      "skyRegion": "Region nieba",
-      "sourceType": "Typ źródła"
+      "sourceClass": "Klasa źródła",
+      "discoveryMethod": "Metoda odkrycia",
+      "confidenceBand": "Przedział pewności",
+      "catalogCountBand": "Przedział liczby katalogów"
     },
-    "tableColumns": {
-      "group": "Grupa",
-      "samples": "Próbki",
-      "avgEmission": "Śr. emisja",
-      "medianEmission": "Mediana emisji",
-      "avgSigma": "Śr. sigma",
-      "peakSigma": "Szczyt sigma",
-      "avgDetectability": "Śr. detectability",
-      "highDetectabilityPercent": "High detectability %"
-    },
-    "metrics": {
-      "samples": "Próbki",
-      "avgEmission": "Średnia emisja",
-      "avgSigma": "Średnia sigma",
-      "highDetectability": "High detectability"
-    },
-    "groupingLabel": "Grouping dla tabeli agregacji",
-    "emissionTrend": "Wykresy emisji: trend roczny",
-    "emissionTrendDescription": "Średni strumień emisji dla wybranych katalogów w czasie.",
-    "emissionComparison": "Wykresy emisji: średnia vs maksimum",
-    "emissionComparisonDescription": "Porównanie poziomów emisji pomiędzy katalogami.",
-    "radarMetrics": {
-      "emissionIndex": "Indeks emisji",
-      "significanceIndex": "Indeks istotności",
-      "detectabilityIndex": "Indeks detectability",
-      "highDetectabilityShare": "Udział high detectability"
-    },
-    "sigmaLabels": {
-      "avgSigma": "Średnia sigma",
-      "percentile95": "95 percentyl sigma",
-      "maxSigma": "Maksimum sigma"
-    },
-    "detectabilityCategories": {
+    "confidenceBands": {
+      "veryLow": "Bardzo niska",
       "low": "Niska",
       "medium": "Średnia",
       "high": "Wysoka"
     },
-    "emissionLabels": {
-      "avgEmission": "Średnia emisja",
-      "peakEmission": "Szczyt emisji"
+    "catalogCountBands": {
+      "single": "Jeden katalog",
+      "paired": "2-3 katalogi",
+      "multi": "4+ katalogi"
     },
-    "significancePlot": "Wykres istotności statystycznej",
-    "significancePlotDescription": "Średnia, 95 percentyl i wartość maksymalna detekcji (sigma) na katalog.",
-    "catalogComparison": "Porównania między katalogami",
-    "catalogComparisonDescription": "Radar porównujący emisję, istotność i detectability po normalizacji.",
-    "detectabilitySection": "Detectability: osobna sekcja porównania",
-    "detectabilitySectionDescription": "Rozkład low/medium/high detectability dla każdego katalogu."
+    "tableColumns": {
+      "group": "Grupa",
+      "samples": "Próbki",
+      "avgEmission": "Śr. flux1000",
+      "avgSigma": "Śr. istotność",
+      "avgConfidence": "Śr. pewność",
+      "avgCatalogCount": "Śr. liczba katalogów",
+      "multiCatalogPercent": "% multi-katalogowe"
+    },
+    "metrics": {
+      "samples": "Próbki",
+      "avgFlux": "Średni flux1000",
+      "avgSigma": "Średnia istotność",
+      "avgConfidence": "Średnia pewność",
+      "multiCatalogShare": "Udział multi-katalogowych"
+    },
+    "groupingLabel": "Grouping dla tabeli agregacji",
+    "comparison": {
+      "scienceScore": "Wynik naukowy",
+      "multiCatalogShare": "Udział multi-katalogowych"
+    },
+    "catalogComparison": "Porównanie katalogów",
+    "catalogComparisonDescription": "Porównanie katalogów przez wynik złożony i nakładanie katalogów.",
+    "catalogCoverage": "Pokrycie katalogów",
+    "catalogCoverageDescription": "Porównanie liczby próbek i różnorodności klas między katalogami.",
+    "map": {
+      "title": "Mapa nieba katalogów",
+      "description": "Interaktywna projekcja nieba z kontrolą projekcji, nakładkami katalogów i filtrem czasu.",
+      "projection": "Projekcja",
+      "coordinates": "Układ współrzędnych",
+      "equatorial": "Równikowy",
+      "galactic": "Galaktyczny",
+      "timeline": "Zakres dat odkrycia",
+      "resetView": "Reset widoku",
+      "ra": "Środek RA (deg)",
+      "dec": "Środek DEC (deg)",
+      "radius": "Promień (deg)",
+      "applyRadius": "Zastosuj promień",
+      "clearRadius": "Wyczyść promień",
+      "radiusActive": "Filtr promienia",
+      "radiusInactive": "Filtr promienia nieaktywny",
+      "radiusValidation": "Podaj poprawne RA (0-360), DEC (-90 do 90) i promień (0-180).",
+      "points": "Widoczne punkty",
+      "position": "Pozycja na niebie",
+      "significance": "Istotność",
+      "projections": {
+        "aitoff": "Aitoff",
+        "mollweide": "Mollweide",
+        "orthographic": "Ortograficzna",
+        "equirectangular": "Równodystansowa"
+      }
+    },
+    "coverageMetrics": {
+      "sampleCount": "Próbki",
+      "classDiversity": "Różnorodność klas"
+    },
+    "catalogFluxScatter": "Flux vs istotność",
+    "catalogFluxScatterDescription": "Scatter log-log istotności źródła względem flux1000, kolorowany po katalogu.",
+    "fluxScatter": {
+      "significance": "Istotność",
+      "flux": "Flux1000"
+    },
+    "radarMetrics": {
+      "significanceIndex": "Indeks istotności",
+      "fluxIndex": "Indeks fluxu",
+      "confidenceIndex": "Indeks pewności",
+      "connectivityIndex": "Indeks łączności",
+      "classDiversityIndex": "Indeks różnorodności klas"
+    },
+    "classMixTitle": "Miks klas źródeł",
+    "classMixDescription": "Najczęstsze klasy źródeł ułożone warstwowo według katalogu.",
+    "other": "Pozostałe",
+    "significanceDistributionTitle": "Rozkład istotności",
+    "significanceDistributionDescription": "Rozkład źródeł podle istotności detekcji (sigma).",
+    "significanceDistributionCount": "Liczba źródeł",
+    "crossCatalogOverlapTitle": "Macierz nakładania się katalogów",
+    "crossCatalogOverlapDescription": "Liczba źródeł pojawiających się w każdej parze katalogów.",
+    "significanceCDFTitle": "CDF istotności",
+    "significanceCDFDescription": "Kumulatywny rozkład istotności detekcji źródła.",
+    "cdfPercentage": "Procent",
+    "topSourcesBubbleTitle": "Wykres bąbelkowy top źródeł",
+    "topSourcesBubbleDescription": "Istotność vs flux dla 20 najlepszych źródeł, rozmiar względem wyniku.",
+    "significanceHistogramTitle": "Histogram istotności",
+    "significanceHistogramDescription": "Histogram w skali log z podziałem na katalogi. Przełącz overlap/facets.",
+    "histogram": {
+      "mode": {
+        "overlap": "Nakładanie",
+        "facets": "Facety"
+      }
+    },
+    "bubbleScore": "Wynik",
+    "bubbleSignificance": "Istotność",
+    "bubbleFlux": "Flux1000",
+    "bubbleConfidence": "Pewność",
+    "topSourcesTitle": "Top źródła",
+    "topSourcesDescription": "Najmocniejsze źródła posortowane po łącznym wyniku.",
+    "topSourcesColumns": {
+      "sourceName": "Nazwa źródła",
+      "catalog": "Katalog",
+      "sourceClass": "Klasa źródła",
+      "significance": "Istotność",
+      "flux": "Flux1000",
+      "confidence": "Pewność",
+      "catalogCount": "Liczba katalogów",
+      "score": "Wynik"
+    }
   }
 }

@@ -5,18 +5,30 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { CosmicPoint } from "./types";
-import { CATEGORY_META } from "./types";
+import { getCategoryMeta } from "./types";
 
 interface Props {
   point: CosmicPoint | null;
   onClose: () => void;
 }
 
+function formatNumber(value: number | null | undefined, digits = 3): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (Math.abs(value) > 0 && (Math.abs(value) < 1e-3 || Math.abs(value) >= 1e6)) {
+    return value.toExponential(digits);
+  }
+  return value.toFixed(digits);
+}
+
+function formatPlain(value: string | null | undefined): string {
+  return value && value.trim().length > 0 ? value : "—";
+}
+
 export function PointDetailPanel({ point, onClose }: Props) {
   const { t } = useTranslation();
   if (!point) return null;
 
-  const meta = CATEGORY_META[point.category];
+  const meta = getCategoryMeta(t)[point.category];
 
   return (
     <div
@@ -76,63 +88,67 @@ export function PointDetailPanel({ point, onClose }: Props) {
               label={t("pointDetail.declination")}
               value={`${point.dec > 0 ? "+" : ""}${point.dec.toFixed(2)}°`}
             />
-            <StatCard label={t("pointDetail.distance")} value={point.distance} />
-            <StatCard label={t("pointDetail.magnitude")} value={point.magnitude.toFixed(1)} />
+            <StatCard
+              label={t("pointDetail.sourceClass")}
+              value={formatPlain(point.sourceClass)}
+            />
+            <StatCard
+              label={t("pointDetail.catalogCount")}
+              value={String(point.catalogCount)}
+            />
           </div>
 
           <Separator className="bg-white/10" />
 
-          <Section title={t("pointDetail.discoveredBy")}>
-            <p className="text-sm text-white/80">{point.discoveredBy}</p>
+          <Section title={t("pointDetail.identification")}>
+            <dl className="space-y-1.5 text-sm">
+              <DefRow
+                label={t("pointDetail.primaryCatalog")}
+                value={point.primaryCatalog}
+              />
+              <DefRow
+                label={t("pointDetail.associatedName")}
+                value={formatPlain(point.associatedName)}
+              />
+              <DefRow
+                label={t("pointDetail.discoveryMethod")}
+                value={formatPlain(point.discoveryMethod)}
+              />
+            </dl>
           </Section>
 
           <Separator className="bg-white/10" />
 
-          <Section title={t("pointDetail.description")}>
-            <p className="text-sm text-white/70 leading-relaxed">
-              {point.description}
-            </p>
+          <Section title={t("pointDetail.measurements")}>
+            <dl className="space-y-1.5 text-sm">
+              <DefRow
+                label={t("pointDetail.significance")}
+                value={formatNumber(point.significance, 2)}
+              />
+              <DefRow
+                label={t("pointDetail.flux1000")}
+                value={formatNumber(point.flux1000, 3)}
+              />
+              <DefRow
+                label={t("pointDetail.spectralIndex")}
+                value={formatNumber(point.spectralIndex, 3)}
+              />
+            </dl>
           </Section>
 
           <Separator className="bg-white/10" />
 
-          <Section title={t("pointDetail.observationNotes")}>
-            <p className="text-sm text-white/70 leading-relaxed">
-              Vestibulum ante ipsum primis in faucibus orci luctus et ultrices
-              posuere cubilia curae. Morbi lacinia molestie dui. Praesent
-              blandit dolor. Sed non quam. In vel mi sit amet augue congue
-              elementum. Morbi in ipsum sit amet pede facilisis laoreet.
-            </p>
-          </Section>
-
-          <Separator className="bg-white/10" />
-
-          <Section title={t("pointDetail.spectralAnalysis")}>
-            <div className="rounded-lg bg-white/5 border border-white/5 p-6 flex items-center justify-center">
-              <p className="text-xs text-white/30 italic">
-                {t("pointDetail.chartPlaceholder")}
-              </p>
-            </div>
-          </Section>
-
-          <Separator className="bg-white/10" />
-
-          <Section title={t("pointDetail.angularPosition")}>
-            <div className="rounded-lg bg-white/5 border border-white/5 p-6 flex items-center justify-center">
-              <p className="text-xs text-white/30 italic">
-                {t("pointDetail.angularPlaceholder")}
-              </p>
-            </div>
-          </Section>
-
-          <Separator className="bg-white/10" />
-
-          <Section title={t("pointDetail.fluxEnergy")}>
-            <div className="rounded-lg bg-white/5 border border-white/5 p-6 flex items-center justify-center">
-              <p className="text-xs text-white/30 italic">
-                {t("pointDetail.fluxPlaceholder")}
-              </p>
-            </div>
+          <Section title={t("pointDetail.confidence")}>
+            <dl className="space-y-1.5 text-sm">
+              <DefRow
+                label={t("pointDetail.bestConfidence")}
+                value={formatNumber(point.bestConfidence, 2)}
+              />
+              <DefRow
+                label={t("pointDetail.avgConfidence")}
+                value={formatNumber(point.avgConfidence, 2)}
+              />
+            </dl>
           </Section>
         </div>
       </ScrollArea>
@@ -163,7 +179,16 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] uppercase tracking-wider text-white/40 mb-0.5">
         {label}
       </p>
-      <p className="text-sm font-semibold text-white/90">{value}</p>
+      <p className="text-sm font-semibold text-white/90 break-all">{value}</p>
+    </div>
+  );
+}
+
+function DefRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-xs text-white/50">{label}</dt>
+      <dd className="text-sm text-white/85 text-right break-all">{value}</dd>
     </div>
   );
 }
