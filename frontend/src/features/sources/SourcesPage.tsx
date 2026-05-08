@@ -19,11 +19,7 @@ import type {
 import { useSourcesData } from "./useSourcesData";
 import { getSourcesColumns } from "./sourcesColumns";
 import { getSourcesFilters } from "./sourcesFilters";
-import type { Source, SourceClass, SourcesQueryParams } from "./types";
-
-const isSourceClass = (value: unknown): value is SourceClass =>
-  typeof value === "string" &&
-  ["PSR", "BLL", "FSRQ", "AGN", "UNK", "BIN", "HMB", "SNR"].includes(value);
+import type { CatalogName, Source, SourcesQueryParams } from "./types";
 
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
@@ -31,12 +27,26 @@ const asString = (value: unknown): string | undefined =>
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" ? value : undefined;
 
-const asSourceClassArray = (value: unknown): SourceClass[] | undefined => {
+const isCatalogName = (value: unknown): value is CatalogName =>
+  typeof value === "string" &&
+  ["FERMI", "LHAASO", "HAWC", "TEVCAT", "NED"].includes(value);
+
+const asCatalogArray = (value: unknown): CatalogName[] | undefined => {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  const classes = value.filter(isSourceClass);
-  return classes.length > 0 ? classes : undefined;
+  const catalogs = value.filter(isCatalogName);
+  return catalogs.length > 0 ? catalogs : undefined;
+};
+
+const asStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const values = value.filter(
+    (item): item is string => typeof item === "string" && item.length > 0
+  );
+  return values.length > 0 ? values : undefined;
 };
 
 export function SourcesPage() {
@@ -49,10 +59,10 @@ export function SourcesPage() {
     pageSize: 100
   });
 
-  // Sorting state (default: significance descending)
+  // Sorting state (default: source name ascending)
   const [sorting, setSorting] = useState<SortingState>({
-    sortBy: "significance",
-    sortOrder: "desc"
+    sortBy: "unified_name",
+    sortOrder: "asc"
   });
 
   // Filter state
@@ -65,14 +75,19 @@ export function SourcesPage() {
     sortBy: sorting.sortBy || undefined,
     sortOrder: sorting.sortOrder,
     search: asString(filterState.search),
-    sourceClass: asSourceClassArray(filterState.sourceClass),
+    primaryCatalogs: asCatalogArray(filterState.primaryCatalog),
+    sourceClasses: asStringArray(filterState.sourceClasses),
     raMin: asNumber(filterState.raMin),
     raMax: asNumber(filterState.raMax),
     decMin: asNumber(filterState.decMin),
     decMax: asNumber(filterState.decMax),
+    confidenceMin: asNumber(filterState.confidenceMin),
+    confidenceMax: asNumber(filterState.confidenceMax),
+    significanceMin: asNumber(filterState.significanceMin),
+    significanceMax: asNumber(filterState.significanceMax),
     fluxMin: asNumber(filterState.fluxMin),
     fluxMax: asNumber(filterState.fluxMax),
-    significanceMin: asNumber(filterState.significanceMin)
+    minCatalogCount: asNumber(filterState.minCatalogCount)
   };
 
   // Fetch data with TanStack Query

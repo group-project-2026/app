@@ -4,15 +4,22 @@ import { PointDetailPanel } from "../PointDetailPanel";
 import type { CosmicPoint } from "../types";
 
 const MOCK_POINT: CosmicPoint = {
-  id: "star-0",
-  name: "Proxima Centauri",
-  category: "star",
+  id: "src-1",
+  name: "4FGL J0001.0+0000",
+  category: "FERMI",
   ra: 217.44,
   dec: -62.68,
   magnitude: 4.2,
-  description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-  distance: "4.24 ly",
-  discoveredBy: "Hubble Space Telescope",
+  primaryCatalog: "FERMI",
+  sourceClass: "AGN",
+  significance: 12.34,
+  flux1000: 1.5e-9,
+  spectralIndex: -2.1,
+  associatedName: "PKS 0001-00",
+  discoveryMethod: "gamma-ray",
+  bestConfidence: 0.95,
+  avgConfidence: 0.85,
+  catalogCount: 3,
 };
 
 describe("PointDetailPanel", () => {
@@ -25,12 +32,12 @@ describe("PointDetailPanel", () => {
 
   it("should render the point name", () => {
     render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(screen.getByText("Proxima Centauri")).toBeInTheDocument();
+    expect(screen.getByText(MOCK_POINT.name)).toBeInTheDocument();
   });
 
-  it("should render the category badge", () => {
+  it("should render the category badge using catalog label", () => {
     render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(screen.getByText("Star")).toBeInTheDocument();
+    expect(screen.getByText("Fermi-LAT")).toBeInTheDocument();
   });
 
   it("should render RA value", () => {
@@ -49,26 +56,24 @@ describe("PointDetailPanel", () => {
     expect(screen.getByText("-62.68°")).toBeInTheDocument();
   });
 
-  it("should render distance", () => {
+  it("should render source class", () => {
     render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(screen.getByText("4.24 ly")).toBeInTheDocument();
+    expect(screen.getByText("AGN")).toBeInTheDocument();
   });
 
-  it("should render magnitude", () => {
+  it("should render catalog count", () => {
     render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(screen.getByText("4.2")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("should render discoveredBy", () => {
+  it("should render associated name", () => {
     render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(screen.getByText("Hubble Space Telescope")).toBeInTheDocument();
+    expect(screen.getByText("PKS 0001-00")).toBeInTheDocument();
   });
 
-  it("should render description", () => {
+  it("should render discovery method", () => {
     render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(
-      screen.getByText(/Lorem ipsum dolor sit amet/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("gamma-ray")).toBeInTheDocument();
   });
 
   it("should render all section headings", () => {
@@ -77,14 +82,11 @@ describe("PointDetailPanel", () => {
     const headings = [
       "Right Ascension",
       "Declination",
-      "Distance",
-      "Magnitude",
-      "Discovered by",
-      "Description",
-      "Observation Notes",
-      "Spectral Analysis",
-      "Angular Position",
-      "Flux & Energy",
+      "Source class",
+      "Catalog count",
+      "Identification",
+      "Measurements",
+      "Confidence",
     ];
 
     for (const heading of headings) {
@@ -92,17 +94,21 @@ describe("PointDetailPanel", () => {
     }
   });
 
-  it("should render placeholder sections for future content", () => {
-    render(<PointDetailPanel point={MOCK_POINT} onClose={jest.fn()} />);
-    expect(
-      screen.getByText(/spectral energy distribution/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/galactic coordinates/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/flux vs energy plot/i),
-    ).toBeInTheDocument();
+  it("should render em dash for missing fields", () => {
+    const sparsePoint: CosmicPoint = {
+      ...MOCK_POINT,
+      sourceClass: null,
+      associatedName: null,
+      discoveryMethod: null,
+      significance: null,
+      flux1000: null,
+      spectralIndex: null,
+      bestConfidence: null,
+      avgConfidence: null,
+    };
+    render(<PointDetailPanel point={sparsePoint} onClose={jest.fn()} />);
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBeGreaterThanOrEqual(3);
   });
 
   it("should call onClose when the X button is clicked", async () => {
@@ -117,21 +123,21 @@ describe("PointDetailPanel", () => {
 
   it("should render different data for different points", () => {
     const anotherPoint: CosmicPoint = {
-      id: "galaxy-0",
-      name: "Andromeda",
-      category: "galaxy",
+      ...MOCK_POINT,
+      id: "src-2",
+      name: "TXS 0506+056",
+      category: "TEVCAT",
+      primaryCatalog: "TEVCAT",
       ra: 10.68,
       dec: 41.27,
-      magnitude: 3.4,
-      description: "Spiral galaxy in the Local Group.",
-      distance: "2.5 Mly",
-      discoveredBy: "Charles Messier",
+      sourceClass: "BLL",
+      associatedName: "Andromeda",
     };
 
     render(<PointDetailPanel point={anotherPoint} onClose={jest.fn()} />);
+    expect(screen.getByText("TXS 0506+056")).toBeInTheDocument();
+    expect(screen.getByText("TeVCat")).toBeInTheDocument();
+    expect(screen.getByText("BLL")).toBeInTheDocument();
     expect(screen.getByText("Andromeda")).toBeInTheDocument();
-    expect(screen.getByText("Galaxy")).toBeInTheDocument();
-    expect(screen.getByText("2.5 Mly")).toBeInTheDocument();
-    expect(screen.getByText("Charles Messier")).toBeInTheDocument();
   });
 });

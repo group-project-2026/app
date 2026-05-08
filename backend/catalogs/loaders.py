@@ -72,6 +72,8 @@ class FermiLoader(CatalogLoader):
         if os.path.exists(self.fits_path):
             return
 
+        os.makedirs(os.path.dirname(self.fits_path), exist_ok=True)
+
         session = _get_session_with_ssl()
         try:
             response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
@@ -179,6 +181,8 @@ class LHASOLoader(CatalogLoader):
         """Download FITS file if not already present."""
         if os.path.exists(self.fits_path):
             return
+
+        os.makedirs(os.path.dirname(self.fits_path), exist_ok=True)
 
         session = _get_session_with_ssl()
         try:
@@ -339,6 +343,8 @@ class HAWCLoader(CatalogLoader):
         if os.path.exists(self.yaml_path):
             return
 
+        os.makedirs(os.path.dirname(self.yaml_path), exist_ok=True)
+
         session = _get_session_with_ssl()
         try:
             # Try with SSL verification first
@@ -476,19 +482,87 @@ class HAWCLoader(CatalogLoader):
 
 class TeVCatLoader(CatalogLoader):
     """
-    Load TeVCat catalog (TeV source catalog).
-    TeVCat is a comprehensive catalog of TeV gamma-ray sources.
+    Load TeVCat catalog (TeV source catalog) via HEASARC TAP service.
+
+    HEASARC mirrors TeVCat at https://heasarc.gsfc.nasa.gov/W3Browse/all/tevcat.html
+    Queried through astroquery using the table name "tevcat".
     """
 
     catalog_name = "TEVCAT"
+    HEASARC_TABLE = "tevcat"
 
     def load(self) -> List[Dict[str, Any]]:
-        """
-        Load TeVCat sources from ASCII/CSV file or API.
-        TODO: Implement TeVCat loading.
-        """
-        # Placeholder: return empty list until TeVCat data source is available
-        return []
+        try:
+            from astroquery.heasarc import Heasarc
+        except ImportError:
+            print("⚠️  astroquery not installed; cannot load TeVCat")
+            return []
+
+        try:
+            heasarc = Heasarc()
+            result = heasarc.query_tap(query=f"SELECT * FROM {self.HEASARC_TABLE}")
+            table = result.to_table()
+        except Exception as e:
+            print(f"⚠️  Error querying HEASARC TeVCat: {type(e).__name__}: {e}")
+            return []
+
+        return self._normalize(table)
+
+    def _normalize(self, table: Table) -> List[Dict[str, Any]]:
+        sources = []
+        for row in table:
+            ra = self._f(row.get("ra"))
+            dec = self._f(row.get("dec"))
+            if ra is None or dec is None:
+                continue
+
+            name = self._s(row.get("name")) or f"TeVCat J{ra:07.2f}{dec:+07.2f}"
+
+            metadata = {
+                "catalog_version": "TeVCat (HEASARC)",
+                "source_type": self._s(row.get("source_type")),
+                "alt_name": self._s(row.get("alt_name")),
+                "flux_crab": self._f(row.get("flux")),
+                "spectral_index": self._f(row.get("spectral_index")),
+                "distance": self._f(row.get("distance")),
+                "redshift": self._f(row.get("redshift")),
+                "discovery_date": self._s(row.get("discovery_date")),
+                "extended": bool(self._f(row.get("extended_flag")) or 0),
+                "x_size": self._f(row.get("x_size")),
+                "y_size": self._f(row.get("y_size")),
+                "lii": self._f(row.get("lii")),
+                "bii": self._f(row.get("bii")),
+            }
+
+            sources.append({
+                "name": name,
+                "ra": ra,
+                "dec": dec,
+                "discovery_method": "gamma-ray (TeV)",
+                "metadata": metadata,
+            })
+
+        return sources
+
+    @staticmethod
+    def _f(val) -> float | None:
+        try:
+            if val is None:
+                return None
+            v = float(val)
+            return None if (math.isnan(v) or math.isinf(v)) else v
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _s(val) -> str:
+        if val is None:
+            return ""
+        try:
+            s = str(val).strip()
+        except Exception:
+            return ""
+        return "" if s in ("--", "nan", "None", "masked") else s
 
 
 class NEDLoader(CatalogLoader):

@@ -44,6 +44,12 @@ jobs:
         run: |
           poetry install --no-interaction --no-root
 
+      - name: Install system GDAL libraries (required for GeoDjango)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev
+
       - name: Run tests
         working-directory: ./backend
         run: |

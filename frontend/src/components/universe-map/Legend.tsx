@@ -1,7 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { getCategoryMeta, type CosmicCategory } from "./types";
-
-const CATEGORIES: CosmicCategory[] = ["star", "galaxy", "nebula", "pulsar", "quasar", "black-hole", "planet", "cluster"];
+import { ALL_CATEGORIES, getCategoryMeta } from "./types";
 
 export function Legend() {
   const { t } = useTranslation();
@@ -14,7 +12,7 @@ export function Legend() {
       <h3 className="text-[11px] uppercase tracking-widest text-white/40 font-semibold mb-2">
         {t("universeMap.legend")}
       </h3>
-      {CATEGORIES.map((cat) => {
+      {ALL_CATEGORIES.map((cat) => {
         const meta = categoryMeta[cat];
         return (
           <div key={cat} className="flex items-center gap-2.5">

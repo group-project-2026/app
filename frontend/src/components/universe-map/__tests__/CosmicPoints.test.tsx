@@ -16,8 +16,6 @@ import { render } from "@testing-library/react";
 import { CosmicPoints } from "../CosmicPoint";
 import type { CosmicPoint } from "../types";
 
-// Mock InstancedMesh methods that CosmicPoint expects on its refs
-// Since @testing-library/react creates standard DOM elements for internal R3F tags
 beforeAll(() => {
   // @ts-expect-error Mocking DOM prototype for R3F intrinsic elements
   Element.prototype.setMatrixAt = jest.fn();
@@ -37,26 +35,40 @@ beforeAll(() => {
 
 const MOCK_POINTS: CosmicPoint[] = [
   {
-    id: "star-0",
-    name: "Proxima Centauri",
-    category: "star",
+    id: "src-1",
+    name: "4FGL J0001.0+0000",
+    category: "FERMI",
     ra: 217.44,
     dec: -62.68,
     magnitude: 4.2,
-    description: "Test description",
-    distance: "4.24 ly",
-    discoveredBy: "Hubble",
+    primaryCatalog: "FERMI",
+    sourceClass: "AGN",
+    significance: 10,
+    flux1000: 1e-9,
+    spectralIndex: -2,
+    associatedName: null,
+    discoveryMethod: "gamma-ray",
+    bestConfidence: 0.9,
+    avgConfidence: 0.85,
+    catalogCount: 2,
   },
   {
-    id: "galaxy-0",
-    name: "Andromeda",
-    category: "galaxy",
+    id: "src-2",
+    name: "LHAASO J0534+2200",
+    category: "LHAASO",
     ra: 10.68,
     dec: 41.27,
     magnitude: 3.4,
-    description: "Spiral galaxy",
-    distance: "2.5 Mly",
-    discoveredBy: "Messier",
+    primaryCatalog: "LHAASO",
+    sourceClass: "PWN",
+    significance: 25,
+    flux1000: 5e-10,
+    spectralIndex: -1.8,
+    associatedName: "Crab",
+    discoveryMethod: "TeV",
+    bestConfidence: 0.99,
+    avgConfidence: 0.95,
+    catalogCount: 1,
   },
 ];
 
@@ -82,18 +94,17 @@ describe("CosmicPoints", () => {
         <CosmicPoints points={MOCK_POINTS} onSelect={onSelect} />,
       );
 
-      // The second instancedMesh is the core (the first is glow with raycast={() => null})
       const meshes = container.querySelectorAll("instancedmesh");
-      const interactableMesh = Array.from(meshes).find((el) => !el.getAttribute("raycast"));
+      const interactableMesh = Array.from(meshes).find(
+        (el) => !el.getAttribute("raycast"),
+      );
 
       if (interactableMesh) {
-        // We mock the R3F event payload
         const makeEvent = (instanceId: number) => ({
           stopPropagation: jest.fn(),
           instanceId,
         });
 
-        // Extract react props using internal key
         const propKey = Object.keys(interactableMesh).find((k) =>
           k.startsWith("__reactProps$"),
         );
@@ -101,18 +112,15 @@ describe("CosmicPoints", () => {
           // @ts-expect-error accessing internal react props
           const props = interactableMesh[propKey];
 
-          // 1. Hover
           if (props.onPointerOver) {
             props.onPointerOver(makeEvent(0));
           }
-          
-          // 2. Click
+
           if (props.onClick) {
             props.onClick(makeEvent(1));
             expect(onSelect).toHaveBeenCalledWith(MOCK_POINTS[1]);
           }
 
-          // 3. Hover Out
           if (props.onPointerOut) {
             props.onPointerOut(makeEvent(0));
           }

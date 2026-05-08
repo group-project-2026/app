@@ -48,7 +48,7 @@ export function CosmicPoints({ points, onSelect }: Props) {
 
     for (const p of points) {
       pos.push(raDecToXYZ(p.ra, p.dec, SPHERE_RADIUS));
-      scl.push(Math.max(0.04, p.magnitude / 100));
+      scl.push(Math.max(0.035, p.magnitude / 130));
       col.push(new THREE.Color(CATEGORY_META[p.category].color));
     }
 
@@ -71,7 +71,7 @@ export function CosmicPoints({ points, onSelect }: Props) {
       core.setMatrixAt(i, DUMMY.matrix);
       core.setColorAt(i, colors[i]);
 
-      DUMMY.scale.setScalar(s * 2.5);
+      DUMMY.scale.setScalar(s * 2.2);
       DUMMY.updateMatrix();
       glow.setMatrixAt(i, DUMMY.matrix);
       glow.setColorAt(i, colors[i]);
@@ -105,12 +105,12 @@ export function CosmicPoints({ points, onSelect }: Props) {
     const s = scales[hoveredIdx];
 
     DUMMY.position.copy(positions[hoveredIdx]);
-    DUMMY.scale.setScalar(s * 1.6 * pulse);
+    DUMMY.scale.setScalar(s * 1.8 * pulse);
     DUMMY.updateMatrix();
     core.setMatrixAt(hoveredIdx, DUMMY.matrix);
     core.instanceMatrix.needsUpdate = true;
 
-    DUMMY.scale.setScalar(s * 3.5 * pulse);
+    DUMMY.scale.setScalar(s * 3.2 * pulse);
     DUMMY.updateMatrix();
     glow.setMatrixAt(hoveredIdx, DUMMY.matrix);
     glow.instanceMatrix.needsUpdate = true;
@@ -130,7 +130,7 @@ export function CosmicPoints({ points, onSelect }: Props) {
       core.setMatrixAt(idx, DUMMY.matrix);
       core.instanceMatrix.needsUpdate = true;
 
-      DUMMY.scale.setScalar(s * 2.5);
+      DUMMY.scale.setScalar(s * 2.2);
       DUMMY.updateMatrix();
       glow.setMatrixAt(idx, DUMMY.matrix);
       glow.instanceMatrix.needsUpdate = true;
@@ -194,7 +194,7 @@ export function CosmicPoints({ points, onSelect }: Props) {
       >
         <meshBasicMaterial
           transparent
-          opacity={0.12}
+          opacity={0.11}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
