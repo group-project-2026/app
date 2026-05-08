@@ -47,7 +47,6 @@ OUR_APPS = [
     "sources",
     "catalogs",
     "api",
-    "fermi",
 ]
 
 INSTALLED_APPS = OUR_APPS + DJANGO_APPS

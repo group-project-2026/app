@@ -24,6 +24,8 @@ class SourceDetailSerializer(serializers.ModelSerializer):
 
     catalog_entries = CatalogEntrySerializer(many=True, read_only=True)
     distance = serializers.SerializerMethodField()
+    avg_confidence = serializers.SerializerMethodField()
+    best_confidence = serializers.SerializerMethodField()
 
     class Meta:
         model = Source
@@ -38,6 +40,8 @@ class SourceDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "catalog_entries",
             "distance",
+            "avg_confidence",
+            "best_confidence",
         ]
         read_only_fields = [
             "id",
@@ -61,6 +65,20 @@ class SourceDetailSerializer(serializers.ModelSerializer):
             elif isinstance(distance, (int, float)):
                 return float(distance)
         return None
+
+    def get_avg_confidence(self, obj):
+        """Return average confidence across all catalog entries."""
+        entries = list(obj.catalog_entries.all())
+        if not entries:
+            return None
+        return round(sum(entry.confidence for entry in entries) / len(entries), 4)
+
+    def get_best_confidence(self, obj):
+        """Return best (highest) confidence across all catalog entries."""
+        entries = list(obj.catalog_entries.all())
+        if not entries:
+            return None
+        return round(max(entry.confidence for entry in entries), 4)
 
 
 class SourceListSerializer(serializers.ModelSerializer):
