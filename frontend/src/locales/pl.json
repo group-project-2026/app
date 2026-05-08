@@ -9,6 +9,27 @@
     "openMenu": "Otwórz menu",
     "closeMenu": "Zamknij menu"
   },
+  "home": {
+    "heroTitle": "Obserwatorium promieniowania gamma",
+    "heroSubtitle": "Eksploruj wszechświat promieniowania gamma",
+    "heroDescription": "Platforma do analizy i wizualizacji źródeł promieniowania gamma z katalogów Fermi, HAWC, LHAASO, NED, TeVCat i MAGIC",
+    "open": "Otwórz",
+    "features": {
+      "universeMapDescription": "Interaktywna mapa 3D obiektów kosmicznych z możliwością filtrowania i szczegółowych informacji",
+      "sourcesDescription": "Przeglądaj i filtruj źródła promieniowania gamma z katalogów astronomicznych",
+      "analyticsDescription": "Zaawansowana analityka katalogów: emisja, istotność statystyczna i porównania"
+    },
+    "stats": {
+      "catalogs": "Katalogów",
+      "sources": "Źródeł",
+      "classes": "Klas obiektów",
+      "visualization": "Wizualizacja"
+    }
+  },
+  "language": {
+    "english": "Angielski",
+    "polish": "Polski"
+  },
   "universeMap": {
     "instructions": "Przeciągnij aby orbitować · Przewiń aby przybliżyć · Prawy przycisk aby przesunąć · Kliknij punkt aby zobaczyć szczegóły",
     "filters": "Filtry",
