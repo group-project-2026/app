@@ -40,6 +40,12 @@ class Command(BaseCommand):
             help="N-sigma for dynamic match radius (default 2.5 = 98.8%)",
         )
         parser.add_argument(
+            "--confidence-method",
+            choices=["gaussian", "mahalanobis"],
+            default="gaussian",
+            help="Confidence calculation method (default: gaussian)",
+        )
+        parser.add_argument(
             "--clear",
             action="store_true",
             help="Clear all sources before ingesting",
@@ -50,6 +56,7 @@ class Command(BaseCommand):
         match_radius = options.get("match_radius", 0.2)
         use_position_errors = options.get("use_position_errors", True)
         n_sigma = options.get("n_sigma", 2.5)
+        confidence_method = options.get("confidence_method", "gaussian")
         clear = options.get("clear", False)
 
         if clear:
@@ -64,12 +71,12 @@ class Command(BaseCommand):
             match_radius_deg=match_radius,
             n_sigma_match=n_sigma,
             use_position_errors=use_position_errors,
-            confidence_method="gaussian",
+            confidence_method=confidence_method,
         )
 
         # Log configuration
         mode = "error-aware" if use_position_errors else "hardcoded-radius"
-        self.stdout.write(f"[ℹ] Mode: {mode}, Fallback radius: {match_radius}°, N-sigma: {n_sigma}")
+        self.stdout.write(f"[ℹ] Mode: {mode}, Fallback radius: {match_radius}°, N-sigma: {n_sigma}, Confidence: {confidence_method}")
 
         for catalog_name in catalogs:
             self._ingest_catalog(catalog_name, cross_match)
