@@ -124,12 +124,10 @@ class FermiLoader(CatalogLoader):
                     "flux1000": self._f(row.get("Flux1000")),
                     "flux1000_err": self._f(row.get("Unc_Flux1000")),
                     "significance": self._f(row.get("Signif_Avg")),
-                    "ts": self._f(row.get("Test_Statistic")),
                     "spectral_type": self._s(row.get("SpectrumType", "")),
                     "pivot_energy": self._f(row.get("Pivot_Energy")),
                     "spectral_index": self._f(row.get("PL_Index")),
                     "spectral_index_err": self._f(row.get("Unc_PL_Index")),
-                    "redshift": self._f(row.get("Redshift")),
                     "variability_index": self._f(row.get("Variability_Index")),
                     "is_variable": bool(int(row.get("Flags", 0)) & (1 << 2)),
                     "flags": int(row.get("Flags", 0)),
@@ -397,127 +395,212 @@ class HAWCLoader(CatalogLoader):
 
     def _parse_yaml(self) -> dict:
         """Parse YAML file."""
-        with open(self.yaml_path, "r") as f:
+        with open(self.yaml_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return data
 
     def _normalize(self, data: dict) -> List[Dict[str, Any]]:
-        """Convert YAML data to normalized source format."""
-        sources = []
+        """Convert HAWC 3HWC YAML to normalized source format.
 
-        # YAML structure - get sources list/dict
+        Expected item shape (simplified):
+        {
+          "name": "3HWC J0534+220",
+          "RA": 83.62,
+          "Dec": 22.02,
+          "l": 184.5,
+          "b": -5.7,
+          "position uncertainty": 0.05,
+          "search radius": 0.0,
+          "TS": 123.4,
+          "flux measurements": [ {"assumed radius": 0.0, "flux": ..., "index": ...}, ... ]
+        }
+        """
+
+        sources: List[Dict[str, Any]] = []
+
         if not data:
             return sources
 
-        # Handle both list and dict formats
-        items = data.values() if isinstance(data, dict) else data
-        if isinstance(items, dict):
-            items = items.values()
+        if isinstance(data, dict):
+            items = list(data.values())
+        elif isinstance(data, list):
+            items = data
+        else:
+            return sources
 
-        items_list = list(items) if not isinstance(items, list) else items
-        print(f"  Found {len(items_list)} potential sources in YAML")
-
-        # Debug: print first item structure
-        if items_list:
-            print(f"  First source keys: {list(items_list[0].keys())}")
-
-        # Iterate through sources
-        for item in items_list:
+        for item in items:
             if not isinstance(item, dict):
                 continue
 
-            try:
-                # Extract coordinates - try ALL possible variations
-                ra = None
-                dec = None
+            ra = None
+            dec = None
+            for ra_key in ["RA", "ra", "Ra", "RA_J2000", "RAJ2000", "ra_j2000", "RA_DEG"]:
+                if ra_key in item:
+                    ra = self._f(item.get(ra_key))
+                    break
 
-                # Try RA column - try all case variations
-                for ra_key in ["RA", "ra", "Ra", "RA_J2000", "RAJ2000", "ra_j2000", "RA_DEG"]:
-                    if ra_key in item:
-                        ra = float(item[ra_key])
+            for dec_key in [
+                "Dec",
+                "DEC",
+                "dec",
+                "Dec_J2000",
+                "DEC_J2000",
+                "DEJ2000",
+                "dec_j2000",
+                "DEC_DEG",
+                "Declination",
+            ]:
+                if dec_key in item:
+                    dec = self._f(item.get(dec_key))
+                    break
+
+            if ra is None or dec is None:
+                continue
+
+            source_name = self._s(
+                item.get("name")
+                or item.get("Name")
+                or item.get("source_name")
+                or item.get("Source_Name")
+                or item.get("designation")
+            )
+            if not source_name:
+                source_name = f"3HWC J{ra:07.2f}{dec:+07.2f}"
+
+            metadata: Dict[str, Any] = {
+                "catalog_version": "3HWC",
+                "detection_method": "gamma-ray (HAWC)",
+            }
+
+            glon = self._f(item.get("l"))
+            glat = self._f(item.get("b"))
+            if glon is not None:
+                metadata["glon"] = glon
+            if glat is not None:
+                metadata["glat"] = glat
+
+            pos_unc = self._f(
+                item.get("position uncertainty")
+                or item.get("position_uncertainty")
+                or item.get("pos_uncertainty")
+                or item.get("pos_err")
+            )
+            metadata["pos_err_circular_deg"] = pos_unc if pos_unc is not None else 0.08
+
+            search_radius = self._f(item.get("search radius") or item.get("search_radius"))
+            if search_radius is not None:
+                metadata["search_radius_deg"] = search_radius
+
+            ts = self._f(item.get("TS") or item.get("ts") or item.get("Test_Statistic"))
+            if ts is not None:
+                metadata["ts"] = ts
+                if ts >= 0:
+                    metadata["significance"] = math.sqrt(ts)
+
+            flux_measurements_raw = (
+                item.get("flux measurements")
+                or item.get("flux_measurements")
+                or item.get("fluxMeasurements")
+            )
+            preferred_measurement: Dict[str, float] | None = None
+            zero_radius_measurement: Dict[str, float] | None = None
+            first_measurement: Dict[str, float] | None = None
+
+            if isinstance(flux_measurements_raw, list):
+                for measurement in flux_measurements_raw:
+                    if not isinstance(measurement, dict):
+                        continue
+
+                    assumed_radius = self._f(
+                        measurement.get("assumed radius")
+                        or measurement.get("assumed_radius")
+                    )
+                    flux = self._f(measurement.get("flux"))
+                    flux_unc_up = self._f(
+                        measurement.get("flux statistical uncertainty up")
+                        or measurement.get("flux_statistical_uncertainty_up")
+                    )
+                    flux_unc_down = self._f(
+                        measurement.get("flux statistical uncertainty down")
+                        or measurement.get("flux_statistical_uncertainty_down")
+                    )
+                    spec_index = self._f(measurement.get("index"))
+                    index_unc_up = self._f(
+                        measurement.get("index statistical uncertainty up")
+                        or measurement.get("index_statistical_uncertainty_up")
+                    )
+                    index_unc_down = self._f(
+                        measurement.get("index statistical uncertainty down")
+                        or measurement.get("index_statistical_uncertainty_down")
+                    )
+
+                    candidate: Dict[str, float] = {}
+                    if assumed_radius is not None:
+                        candidate["assumed_radius_deg"] = assumed_radius
+                    if flux is not None:
+                        candidate["flux"] = flux
+                    if flux_unc_up is not None:
+                        candidate["flux_unc_up"] = flux_unc_up
+                    if flux_unc_down is not None:
+                        candidate["flux_unc_down"] = flux_unc_down
+                    if spec_index is not None:
+                        candidate["spectral_index"] = spec_index
+                    if index_unc_up is not None:
+                        candidate["index_unc_up"] = index_unc_up
+                    if index_unc_down is not None:
+                        candidate["index_unc_down"] = index_unc_down
+
+                    if not candidate:
+                        continue
+
+                    if first_measurement is None:
+                        first_measurement = candidate
+
+                    if assumed_radius is not None and abs(assumed_radius) < 1e-9:
+                        zero_radius_measurement = candidate
+
+                    if (
+                        search_radius is not None
+                        and assumed_radius is not None
+                        and abs(assumed_radius - search_radius) < 1e-9
+                    ):
+                        preferred_measurement = candidate
                         break
 
-                # Try DEC column - try ALL case variations (Dec, DEC, dec, etc.)
-                for dec_key in ["Dec", "DEC", "dec", "Dec_J2000", "DEC_J2000", "DEJ2000", "dec_j2000", "DEC_DEG", "Declination"]:
-                    if dec_key in item:
-                        dec = float(item[dec_key])
-                        break
+            chosen = preferred_measurement or zero_radius_measurement or first_measurement
+            if chosen:
+                flux = chosen.get("flux")
+                if flux is not None:
+                    metadata["flux1000"] = flux
+                    flux_errs = []
+                    if chosen.get("flux_unc_up") is not None:
+                        flux_errs.append(abs(chosen["flux_unc_up"]))
+                    if chosen.get("flux_unc_down") is not None:
+                        flux_errs.append(abs(chosen["flux_unc_down"]))
+                    if flux_errs:
+                        metadata["flux1000_err"] = max(flux_errs)
 
-                if ra is None or dec is None:
-                    # Debug message
-                    if ra is None:
-                        print(f"  ⚠️  Could not find RA in source: {
-                              item.get('name', 'unknown')}")
-                    if dec is None:
-                        print(f"  ⚠️  Could not find Dec in source: {
-                              item.get('name', 'unknown')}")
-                    continue  # Skip if no coordinates
+                spec_index = chosen.get("spectral_index")
+                if spec_index is not None:
+                    metadata["spectral_index"] = spec_index
+                    index_errs = []
+                    if chosen.get("index_unc_up") is not None:
+                        index_errs.append(abs(chosen["index_unc_up"]))
+                    if chosen.get("index_unc_down") is not None:
+                        index_errs.append(abs(chosen["index_unc_down"]))
+                    if index_errs:
+                        metadata["spectral_index_err"] = max(index_errs)
 
-                # Extract source name
-                source_name = None
-                for name_key in ["name", "source_name", "Name", "Source_Name", "NAME", "designation", "source"]:
-                    if name_key in item:
-                        source_name = self._s(item[name_key])
-                        break
-
-                if not source_name:
-                    source_name = f"HAWC J{ra:07.2f}{dec:+07.2f}"
-
-                # Build metadata from available fields
-                metadata = {
-                    "catalog_version": "3HWC",
-                    "detection_method": "gamma-ray (HAWC)",
-                }
-
-                # Extract common fields with all case variations
-                common_fields = [
-                    (["flux", "Flux", "FLUX"], "flux_tev"),
-                    (["flux_upper_bound", "Flux_Upper_Bound"], "flux_tev_upper"),
-                    (["flux_lower_bound", "Flux_Lower_Bound"], "flux_tev_lower"),
-                    (["significance", "Significance"], "significance"),
-                    (["spectral_index", "Spectral_Index", "index"], "spectral_index"),
-                    (["spectral_index_error", "Spectral_Index_Error"],
-                     "spectral_index_err"),
-                    (["TS", "ts", "Test_Statistic"], "ts"),
-                    (["variability", "Variability"], "variability"),
-                    (["extension", "Extension"], "extension"),
-                ]
-
-                for yaml_keys, meta_key in common_fields:
-                    for yaml_key in yaml_keys:
-                        if yaml_key in item:
-                            metadata[meta_key] = self._f(item[yaml_key])
-                            break
-
-                # Extract position uncertainty (in degrees)
-                pos_err_found = False
-                for pos_err_key in ["position uncertainty", "position_uncertainty", "pos_err", "pos_uncertainty"]:
-                    if pos_err_key in item:
-                        pos_err_val = self._f(item[pos_err_key])
-                        if pos_err_val:
-                            metadata["pos_err_circular_deg"] = pos_err_val
-                            pos_err_found = True
-                            break
-
-                # Use catalog default if not found (3HWC typical ~0.05-0.15°)
-                if not pos_err_found:
-                    # Conservative average for 3HWC
-                    metadata["pos_err_circular_deg"] = 0.08
-
-                source = {
+            sources.append(
+                {
                     "name": source_name,
                     "ra": ra,
                     "dec": dec,
                     "discovery_method": "gamma-ray (HAWC)",
                     "metadata": metadata,
                 }
-                sources.append(source)
+            )
 
-            except (KeyError, ValueError, TypeError, Exception):
-                # Skip problematic rows silently
-                continue
-
-        print(f"  Successfully parsed {len(sources)} sources with coordinates")
         return sources
 
     @staticmethod
@@ -603,8 +686,6 @@ class TeVCatLoader(CatalogLoader):
                             break
                     except Exception:
                         pass
-                else:
-                    print(row.colnames)
 
             # If separate RA and DEC errors, combine them
             if not pos_err_found and ("ra_err" in row.colnames or "dec_err" in row.colnames):
