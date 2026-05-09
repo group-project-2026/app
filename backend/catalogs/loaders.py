@@ -587,6 +587,8 @@ class TeVCatLoader(CatalogLoader):
                             break
                     except Exception:
                         pass
+                else:
+                    print(row.colnames)
 
             # If separate RA and DEC errors, combine them
             if not pos_err_found and ("ra_err" in row.colnames or "dec_err" in row.colnames):
