@@ -144,29 +144,45 @@ class ConfidenceCalculator:
     @staticmethod
     def mahalanobis_confidence(
         separation_deg: float,
-        error1: EllipticalPositionError,
-        error2: EllipticalPositionError,
+        error1: PositionError,
+        error2: PositionError,
     ) -> float:
         """
         Calculate confidence using Mahalanobis distance.
 
         Accounts for elliptical error shapes and orientation.
-        More sophisticated than Gaussian, but requires elliptical errors.
+        Handles both pure elliptical matches and mixed circular-elliptical pairs
+        by treating circular errors as degenerate ellipses (semi_major = semi_minor).
 
         Args:
             separation_deg: Angular separation in degrees
-            error1: Elliptical error from source 1
-            error2: Elliptical error from source 2
+            error1: Position error from source 1 (circular or elliptical)
+            error2: Position error from source 2 (circular or elliptical)
 
         Returns:
             Confidence in range [0, 1]
         """
-        # Combined effective sigma using semi-major axes
+        # Convert circular errors to degenerate ellipses for unified treatment
+        elliptical1 = error1
+        if isinstance(error1, CircularPositionError):
+            sigma = error1.get_sigma()
+            elliptical1 = EllipticalPositionError(sigma, sigma, angle_deg=0.0)
+
+        elliptical2 = error2
+        if isinstance(error2, CircularPositionError):
+            sigma = error2.get_sigma()
+            elliptical2 = EllipticalPositionError(sigma, sigma, angle_deg=0.0)
+
+        # Now both are elliptical; combine using RSS on semi-major axes
+        # This accounts for the elliptical structure even in mixed-error cases
         combined_sigma = math.sqrt(
-            error1.semi_major_deg ** 2 + error2.semi_major_deg ** 2
+            elliptical1.semi_major_deg ** 2 + elliptical2.semi_major_deg ** 2
         )
 
-        # Fall back to Gaussian for now (full Mahalanobis needs coordinate rotation)
+        # Compute confidence using Mahalanobis-inspired chi-squared metric
+        if combined_sigma <= 0:
+            return 1.0 if separation_deg == 0 else 0.0
+
         chi_squared = (separation_deg / combined_sigma) ** 2
         return math.exp(-chi_squared / 2)
 

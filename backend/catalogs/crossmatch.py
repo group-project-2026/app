@@ -140,16 +140,15 @@ class CrossMatchService:
             calc = ConfidenceCalculator()
             return calc.gaussian_confidence(separation_deg, combined_error.get_combined_sigma())
         elif self.confidence_method == "mahalanobis":
-            # Use Mahalanobis if both errors are elliptical
-            if isinstance(source_error, EllipticalPositionError) and isinstance(
-                catalog_error, EllipticalPositionError
-            ):
+            # Use Mahalanobis for any combination where both errors are available
+            # (handles pure elliptical and mixed circular-elliptical pairs)
+            if source_error and catalog_error:
                 calc = ConfidenceCalculator()
                 return calc.mahalanobis_confidence(
                     separation_deg, source_error, catalog_error
                 )
             else:
-                # Fall back to Gaussian for mixed error types
+                # Fall back to Gaussian only if one error is completely missing
                 calc = ConfidenceCalculator()
                 return calc.gaussian_confidence(
                     separation_deg, combined_error.get_combined_sigma()
