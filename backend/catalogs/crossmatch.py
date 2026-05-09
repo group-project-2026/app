@@ -1,4 +1,3 @@
-import math
 from typing import List, Optional
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.measure import D
@@ -212,7 +211,6 @@ class CrossMatchService:
 
             # Calculate distance for confidence scoring
             point = Point(ra, dec, srid=4326)
-            from django.contrib.gis.measure import D as DjangoDist
 
             distance_m = source.position.distance(point) * 111000  # degrees to meters
             separation_deg = distance_m / 111000
