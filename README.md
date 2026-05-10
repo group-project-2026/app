@@ -42,6 +42,11 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+The app will be available at:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- Admin panel: `http://localhost:8000/admin`
+
 To pin a specific version instead of `latest`:
 ```bash
 BACKEND_TAG=<git-sha> FRONTEND_TAG=<git-sha> docker compose -f docker-compose.prod.yml up -d
