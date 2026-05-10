@@ -30,7 +30,7 @@ python manage.py migrate
 
 # Load catalog data if not already loaded
 echo "Loading catalog data (FERMI, LHAASO, HAWC, TEVCAT)..."
-python manage.py ingest_catalogs --catalogs FERMI LHAASO HAWC TEVCAT || echo "Warning: Could not load catalog data (may already be loaded)"
+python manage.py ingest_catalogs --catalogs FERMI LHAASO HAWC TEVCAT --skip-existing || echo "Warning: Could not load catalog data (may already be loaded)"
 
 echo "Starting Django development server on 0.0.0.0:8000..."
 python manage.py runserver 0.0.0.0:8000
