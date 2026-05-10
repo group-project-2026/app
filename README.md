@@ -43,7 +43,7 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 The app will be available at:
-- Frontend: `http://localhost`
+- Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:8000`
 - Admin panel: `http://localhost:8000/admin`
 
