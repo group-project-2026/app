@@ -12,7 +12,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--catalogs",
             nargs="+",
-            default=["FERMI", "LHAASO", "HAWC"],
+            default=["FERMI", "LHAASO", "HAWC", "TEVCAT"],
             help="Catalog names to ingest (FERMI, LHAASO, HAWC, TEVCAT, NED)",
         )
         parser.add_argument(
@@ -42,8 +42,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--confidence-method",
             choices=["gaussian", "mahalanobis"],
-            default="gaussian",
-            help="Confidence calculation method (default: gaussian)",
+            default="mahalanobis",
+            help="Confidence calculation method (default: mahalanobis)",
         )
         parser.add_argument(
             "--clear",
