@@ -1,1 +1,0 @@
-# https://data.hawc-observatory.org/datasets/3hwc-survey/aerie-apps_bin1-9__allsky_1024_i2.5_r2.0_p1.0_fc2Flux_negSigMap.fits.gz

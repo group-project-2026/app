@@ -9,6 +9,7 @@ from astropy.table import Table
 
 from app.settings import FILES_DIR
 
+
 # Handle SSL certificate verification issues
 # Create a custom session that handles certificates properly
 def _get_session_with_ssl():
@@ -76,11 +77,13 @@ class FermiLoader(CatalogLoader):
 
         session = _get_session_with_ssl()
         try:
-            response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
+            response = session.get(
+                self.fits_url, stream=True, timeout=120, verify=True)
             response.raise_for_status()
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
             # Retry without SSL verification as fallback
-            response = session.get(self.fits_url, stream=True, timeout=120, verify=False)
+            response = session.get(
+                self.fits_url, stream=True, timeout=120, verify=False)
             response.raise_for_status()
 
         with open(self.fits_path, "wb") as f:
@@ -97,6 +100,16 @@ class FermiLoader(CatalogLoader):
         for row in table:
             ra = float(row["RAJ2000"])
             dec = float(row["DEJ2000"])
+
+            # Standardize position error units: arcmin → degrees
+            pos_err_semi_major = self._f(row.get("Conf_95_SemiMajor"))
+            pos_err_semi_minor = self._f(row.get("Conf_95_SemiMinor"))
+
+            # Convert from arcmin to degrees (Fermi FITS typically uses arcmin)
+            if pos_err_semi_major and pos_err_semi_major > 1:
+                pos_err_semi_major /= 60.0
+            if pos_err_semi_minor and pos_err_semi_minor > 1:
+                pos_err_semi_minor /= 60.0
 
             source = {
                 "name": self._s(row["Source_Name"]),
@@ -121,8 +134,8 @@ class FermiLoader(CatalogLoader):
                     "is_variable": bool(int(row.get("Flags", 0)) & (1 << 2)),
                     "flags": int(row.get("Flags", 0)),
                     "data_release": int(row.get("DataRelease", 2)),
-                    "pos_err_semi_major": self._f(row.get("Conf_95_SemiMajor")),
-                    "pos_err_semi_minor": self._f(row.get("Conf_95_SemiMinor")),
+                    "pos_err_semi_major": pos_err_semi_major,
+                    "pos_err_semi_minor": pos_err_semi_minor,
                     "pos_err_angle": self._f(row.get("Conf_95_PosAng")),
                 },
             }
@@ -187,12 +200,15 @@ class LHASOLoader(CatalogLoader):
         session = _get_session_with_ssl()
         try:
             # Try with SSL verification first
-            response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
+            response = session.get(
+                self.fits_url, stream=True, timeout=120, verify=True)
             response.raise_for_status()
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
             # Retry without SSL verification as fallback
-            print(f"SSL verification failed, retrying without verification: {e}")
-            response = session.get(self.fits_url, stream=True, timeout=120, verify=False)
+            print(
+                f"SSL verification failed, retrying without verification: {e}")
+            response = session.get(
+                self.fits_url, stream=True, timeout=120, verify=False)
             response.raise_for_status()
 
         with open(self.fits_path, "wb") as f:
@@ -277,6 +293,24 @@ class LHASOLoader(CatalogLoader):
                         except Exception:
                             pass
 
+                # Extract position error
+                pos_err_found = False
+                for pos_err_col in ["POS_ERR", "pos_err", "POSITIONAL_ERROR", "position_error", "pos_err_deg", "sigma_p95"]:
+                    if pos_err_col in table.colnames:
+                        try:
+                            err_val = self._f(row[pos_err_col])
+                            if err_val:
+                                metadata["pos_err_circular_deg"] = err_val
+                                pos_err_found = True
+                                break
+                        except Exception:
+                            pass
+
+                # Use catalog default if not found
+                if not pos_err_found:
+                    # LHAASO DR1 typical
+                    metadata["pos_err_circular_deg"] = 0.02
+
                 sources.append({
                     "name": source_name,
                     "ra": ra,
@@ -301,7 +335,6 @@ class LHASOLoader(CatalogLoader):
             return None if (math.isnan(v) or math.isinf(v)) else v
         except (TypeError, ValueError, AttributeError):
             return None
-
 
 
 class HAWCLoader(CatalogLoader):
@@ -348,12 +381,15 @@ class HAWCLoader(CatalogLoader):
         session = _get_session_with_ssl()
         try:
             # Try with SSL verification first
-            response = session.get(self.yaml_url, stream=True, timeout=120, verify=True)
+            response = session.get(
+                self.yaml_url, stream=True, timeout=120, verify=True)
             response.raise_for_status()
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
             # Retry without SSL verification as fallback
-            print(f"SSL verification failed, retrying without verification: {e}")
-            response = session.get(self.yaml_url, stream=True, timeout=120, verify=False)
+            print(
+                f"SSL verification failed, retrying without verification: {e}")
+            response = session.get(
+                self.yaml_url, stream=True, timeout=120, verify=False)
             response.raise_for_status()
 
         with open(self.yaml_path, "wb") as f:
@@ -410,9 +446,11 @@ class HAWCLoader(CatalogLoader):
                 if ra is None or dec is None:
                     # Debug message
                     if ra is None:
-                        print(f"  ⚠️  Could not find RA in source: {item.get('name', 'unknown')}")
+                        print(f"  ⚠️  Could not find RA in source: {
+                              item.get('name', 'unknown')}")
                     if dec is None:
-                        print(f"  ⚠️  Could not find Dec in source: {item.get('name', 'unknown')}")
+                        print(f"  ⚠️  Could not find Dec in source: {
+                              item.get('name', 'unknown')}")
                     continue  # Skip if no coordinates
 
                 # Extract source name
@@ -438,7 +476,8 @@ class HAWCLoader(CatalogLoader):
                     (["flux_lower_bound", "Flux_Lower_Bound"], "flux_tev_lower"),
                     (["significance", "Significance"], "significance"),
                     (["spectral_index", "Spectral_Index", "index"], "spectral_index"),
-                    (["spectral_index_error", "Spectral_Index_Error"], "spectral_index_err"),
+                    (["spectral_index_error", "Spectral_Index_Error"],
+                     "spectral_index_err"),
                     (["TS", "ts", "Test_Statistic"], "ts"),
                     (["variability", "Variability"], "variability"),
                     (["extension", "Extension"], "extension"),
@@ -449,6 +488,21 @@ class HAWCLoader(CatalogLoader):
                         if yaml_key in item:
                             metadata[meta_key] = self._f(item[yaml_key])
                             break
+
+                # Extract position uncertainty (in degrees)
+                pos_err_found = False
+                for pos_err_key in ["position uncertainty", "position_uncertainty", "pos_err", "pos_uncertainty"]:
+                    if pos_err_key in item:
+                        pos_err_val = self._f(item[pos_err_key])
+                        if pos_err_val:
+                            metadata["pos_err_circular_deg"] = pos_err_val
+                            pos_err_found = True
+                            break
+
+                # Use catalog default if not found (3HWC typical ~0.05-0.15°)
+                if not pos_err_found:
+                    # Conservative average for 3HWC
+                    metadata["pos_err_circular_deg"] = 0.08
 
                 source = {
                     "name": source_name,
@@ -500,10 +554,12 @@ class TeVCatLoader(CatalogLoader):
 
         try:
             heasarc = Heasarc()
-            result = heasarc.query_tap(query=f"SELECT * FROM {self.HEASARC_TABLE}")
+            result = heasarc.query_tap(
+                query=f"SELECT * FROM {self.HEASARC_TABLE}")
             table = result.to_table()
         except Exception as e:
-            print(f"⚠️  Error querying HEASARC TeVCat: {type(e).__name__}: {e}")
+            print(f"⚠️  Error querying HEASARC TeVCat: {
+                  type(e).__name__}: {e}")
             return []
 
         return self._normalize(table)
@@ -516,7 +572,8 @@ class TeVCatLoader(CatalogLoader):
             if ra is None or dec is None:
                 continue
 
-            name = self._s(row.get("name")) or f"TeVCat J{ra:07.2f}{dec:+07.2f}"
+            name = self._s(row.get("name")) or f"TeVCat J{
+                ra:07.2f}{dec:+07.2f}"
 
             metadata = {
                 "catalog_version": "TeVCat (HEASARC)",
@@ -533,6 +590,40 @@ class TeVCatLoader(CatalogLoader):
                 "lii": self._f(row.get("lii")),
                 "bii": self._f(row.get("bii")),
             }
+
+            # Extract position error - try multiple column name variations
+            pos_err_found = False
+            for pos_err_col in ["ra_err", "dec_err", "pos_err", "position_error", "RA_ERR", "DEC_ERR"]:
+                if pos_err_col in row.colnames:
+                    try:
+                        err_val = self._f(row[pos_err_col])
+                        if err_val:
+                            metadata["pos_err_circular_deg"] = err_val
+                            pos_err_found = True
+                            break
+                    except Exception:
+                        pass
+                else:
+                    print(row.colnames)
+
+            # If separate RA and DEC errors, combine them
+            if not pos_err_found and ("ra_err" in row.colnames or "dec_err" in row.colnames):
+                try:
+                    ra_err = self._f(row.get("ra_err")
+                                     ) if "ra_err" in row.colnames else None
+                    dec_err = self._f(row.get("dec_err")
+                                      ) if "dec_err" in row.colnames else None
+                    if ra_err and dec_err:
+                        combined_err = math.sqrt(ra_err**2 + dec_err**2)
+                        metadata["pos_err_circular_deg"] = combined_err
+                        pos_err_found = True
+                except Exception:
+                    pass
+
+            # Use catalog default if not found (TeVCat typical ~0.02-0.1°)
+            if not pos_err_found:
+                # Conservative default for TeVCat
+                metadata["pos_err_circular_deg"] = 0.05
 
             sources.append({
                 "name": name,
