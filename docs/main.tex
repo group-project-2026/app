@@ -1,0 +1,265 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{natbib}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage[left=1.5cm, right=2cm]{geometry}
+\title{Detectability of 4FGL catalog \textit{Fermi}-LAT sources with Imaging Atmospheric Cherenkov Telescopes}
+\author{Sandra Dembińska$^1$, Wojciech Jabłoński$^1$, Kajetan Janusz $^1$, Mateusz Jaworski$^1$,\\
+Bartosz Palewicz$^1$, Jakub Szczech$^1$, Krzysztof Wilk$^1$, Julian Sitarek$^1$\\
+\\
+$^1$Faculty of Physics and Applied Informatics, University of Lodz
+}
+\date{April 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+The purpose of the project is to prepare an application that aggregates information from various sources in order to evaluate detectability of the sources listed in the 4FGL-DR4 catalog \citep{2020ApJS..247...33A}.
+The application includes multi-TeV information from HAWC and LHAASO experiments, as well as various multiwavelength data available in NASA NED database.
+The sources are cross-references according to the known TeV sources in TeVCAT.
+In order to evaluate detectability of the sources MAGIC Source Simulator (mss) is used.
+
+\section{Project concept and task management, MVP -- Jakub Szczech}
+
+Jakub Szczech was responsible for defining the overall project concept and translating it into a concrete development roadmap.
+The project addresses the need for a unified, web-accessible interface that aggregates high-energy gamma-ray catalogs — \textit{Fermi}-LAT 4FGL, HAWC 3HWC, LHAASO, and TeVCat — alongside multiwavelength data from the NASA NED database, enabling astronomers to assess the detectability of known sources with Imaging Atmospheric Cherenkov Telescopes (IACTs).
+
+The minimum viable product (MVP) was scoped to include four essential components:
+\begin{enumerate}
+    \item A catalog ingestion pipeline capable of downloading, parsing, and cross-matching sources from at least the \textit{Fermi}-LAT and HAWC catalogs.
+    \item A PostGIS-backed relational data model storing unified source records together with catalog-specific metadata.
+    \item A REST API exposing paginated source listings, spatial cone searches, and advanced multi-field filtering.
+    \item A browser-based single-page application allowing users to browse, filter, and visualise the aggregated source set.
+\end{enumerate}
+
+Each MVP component was treated as an independent track — backend data model and ingestion, REST API, and frontend — so that parallel development could proceed without blocking dependencies.
+Tasks were decomposed into discrete work items with defined acceptance criteria specifying the expected API contract, data model constraints, and UI behaviour.
+This structured approach ensured that integration points between components (for example, the shape of the JSON envelope returned by paginated endpoints) were agreed upon before implementation, reducing friction during final integration.
+
+Feature prioritisation followed the principle that every item in the MVP must be demonstrably correct before optional extensions — such as the 3D celestial sphere, analytics dashboard, or MAGIC Source Simulator integration — were begun.
+This sequencing allowed the team to maintain a working, deployable system at every stage of development, rather than accumulating unintegrated work across tracks.
+
+The project management strategy proved effective in keeping individual contributions focused and testable.
+Future extensions, such as real-time ingestion of newly released catalog versions or integration with additional IACT simulation frameworks, can be incorporated by adding new loader classes and API endpoint actions without altering the unified source model.
+
+\section{Repository management and integration - Kajetan Janusz}
+
+Kajetan Janusz managed the repository and was responsible for the full containerisation and continuous integration infrastructure.
+The goal of this work was to provide every contributor with a reproducible, single-command local development environment and to enforce code quality gates on every pull request through automated pipelines.
+
+The application is orchestrated with Docker Compose, defining three services that form a strict health-check dependency chain:
+
+\begin{enumerate}
+    \item \textbf{database} — PostgreSQL~16 with PostGIS~3.4 (\texttt{postgis/postgis:16-3.4-alpine}), exposed on port~5432, with a named volume \texttt{postgres-data} for persistence.
+    \item \textbf{backend} — Django REST API built from \texttt{backend/Dockerfile}, exposed on port~8000; starts only after \texttt{database} passes its \texttt{pg\_isready} health check.
+    \item \textbf{frontend} — Vite development server built from \texttt{frontend/Dockerfile}, exposed on port~3000; starts only after \texttt{backend} passes its HTTP health check.
+\end{enumerate}
+
+The dependency ordering is expressed as:
+\begin{equation}
+    \texttt{database} \xrightarrow{\text{healthy}} \texttt{backend} \xrightarrow{\text{healthy}} \texttt{frontend}
+\end{equation}
+
+The backend health check polls the live catalog endpoint:
+\begin{verbatim}
+curl -fsS http://localhost:8000/api/sources/?page=1&page_size=1
+\end{verbatim}
+with a 180-second \texttt{start\_period} to accommodate the initial catalog download and ingestion, which can take several minutes on a cold start.
+
+Separate Dockerfiles were written for each service.
+The backend image is based on \texttt{python:3.12.13-slim-bookworm}; it installs PostGIS system libraries (\texttt{libgdal-dev}, \texttt{libgeos-dev}, \texttt{libproj-dev}), build toolchains, and Python dependencies via Poetry with \texttt{POETRY\_VIRTUALENVS\_CREATE=false} so packages are installed system-wide, avoiding virtualenv overhead in the container.
+Django static files are collected at image build time via \texttt{manage.py collectstatic}.
+The frontend image is based on \texttt{node:22.22.2-bookworm-slim}; it installs exact dependencies from \texttt{package-lock.json} via \texttt{npm ci} and runs the Vite development server bound to all interfaces on port~3000.
+
+Two GitHub Actions workflows enforce quality on every pull request.
+The \emph{backend} workflow triggers on changes to \texttt{backend/**} and runs two sequential jobs: (1) Ruff static analysis, and (2) pytest with PostGIS system libraries pre-installed.
+The \emph{frontend} workflow triggers on changes to \texttt{frontend/**} and runs three independent parallel jobs: (1) ESLint, (2) TypeScript type-checking via \texttt{tsc --noEmit}, and (3) Jest unit tests.
+Parallelism in the frontend pipeline reduces wall-clock time by executing all three checks simultaneously.
+
+All environment variables are supplied via a single \texttt{.env} file at the repository root, referenced by both the backend and frontend services.
+An \texttt{.env.example} file is committed to the repository documenting the required variables and their default values, enabling any contributor to start the full stack with \texttt{docker compose up -{}-build} after a single \texttt{cp .env.example .env}.
+
+\section{Data aggregation from \textit{Fermi}-LAT, HAWC and LHAASO catalogs -- Bartosz Palewicz}
+
+Bartosz Palewicz implemented the catalog ingestion pipeline that populates the unified source database from the \textit{Fermi}-LAT 4FGL, HAWC 3HWC, LHAASO, and TeVCat catalogs.
+The pipeline is designed around a pluggable loader architecture: each catalog is handled by a dedicated class that encapsulates download, parsing, and normalisation logic, while a shared \texttt{CrossMatchService} handles spatial association with existing records.
+
+Each catalog loader follows a common interface and the ingestion process proceeds in the following steps:
+
+\begin{enumerate}
+    \item \textbf{Download.} The loader fetches the catalog file (FITS or YAML) from its canonical upstream URL and caches it in the local \texttt{backend/data/} directory. Subsequent runs reuse the cached file.
+    \item \textbf{Parse.} The file is read into memory. For FITS catalogs (\texttt{FermiLoader}, \texttt{LHASOLoader}) \texttt{astropy.table} reads binary table HDU~1. For the HAWC catalog (\texttt{HAWCLoader}) a YAML document is parsed with flexible column-name matching to handle variations between releases. TeVCat sources are retrieved via an astroquery TAP query against the HEASARC \texttt{tevcat} table.
+    \item \textbf{Normalise.} Each row is converted to a common intermediate dictionary containing at minimum \texttt{ra}, \texttt{dec}, \texttt{name}, and a \texttt{metadata} payload preserving catalog-specific fields. Non-finite values are converted to \texttt{None}; bit-flag fields (e.g.\ \textit{Fermi} variability flags) are decoded into boolean attributes.
+    \item \textbf{Cross-match.} The \texttt{CrossMatchService} queries the existing \texttt{Source} table for records within the match radius using a PostGIS spatial index.
+    \item \textbf{Persist.} If a match is found the closest existing \texttt{Source} record is reused; a new \texttt{CatalogEntry} row is created (or updated) linking the incoming data to that source. If no match is found a new \texttt{Source} is created first.
+\end{enumerate}
+
+The \textit{Fermi}-LAT loader extracts the following fields from 4FGL-DR4 HDU~1: equatorial coordinates (\texttt{RAJ2000}, \texttt{DEJ2000}), source name and associated counterpart (\texttt{Source\_Name}, \texttt{ASSOC1}), source class (\texttt{CLASS1}), integrated energy flux above 1\,GeV (\texttt{Flux1000}), average significance (\texttt{Signif\_Avg}), test statistic (\texttt{Test\_Statistic}), spectral type and power-law index (\texttt{SpectrumType}, \texttt{PL\_Index}), redshift, and position uncertainty ellipse semi-axes.
+The HAWC loader extracts flux at the decorrelation energy, spectral index, significance, and extension from the 3HWC YAML.
+The LHAASO loader similarly extracts flux at 1\,TeV, spectral index, significance, and angular extension from the 1LHAASO FITS file.
+
+The spatial cross-matching criterion is based on an angular proximity threshold $\theta_{\max}$.
+The PostGIS \texttt{ST\_DWithin} function operates on the \texttt{position} field (SRID~4326, geographic coordinates), with the radius converted from degrees to kilometres using the approximation:
+\begin{equation}
+    d_{\max} \;[\text{km}] = \theta_{\max} \;[\text{deg}] \times 111
+\end{equation}
+The default match radius is $\theta_{\max} = 0.2^{\circ}$ ($\approx 12$\,arcmin).
+When multiple existing sources fall within $\theta_{\max}$, the closest one by great-circle angular separation is selected.
+The on-sky angular separation between a candidate position $(\alpha_1, \delta_1)$ and an existing source $(\alpha_2, \delta_2)$ is computed by PostGIS as:
+\begin{equation}
+    \theta = 2 \arcsin\!\left[\sqrt{\sin^2\!\frac{\delta_1 - \delta_2}{2} + \cos\delta_1\,\cos\delta_2\,\sin^2\!\frac{\alpha_1 - \alpha_2}{2}}\right]
+\end{equation}
+
+Catalog-specific metadata is preserved in a \texttt{JSONField} on the \texttt{CatalogEntry} model, allowing each catalog's native fields to be stored without schema migration when new catalogs are added.
+The ingestion pipeline is exposed as a Django management command (\texttt{ingest\_catalogs}) that accepts a \texttt{-{}-catalogs} flag to ingest a subset of catalogs and a \texttt{-{}-match-radius} flag to override the default cross-matching threshold, facilitating sensitivity analysis of the association algorithm.
+
+\section{Numerical code implementation, UX/UI, documentation, user instructions -- Sandra Dembińska}
+
+Sandra Dembińska was responsible for integrating the MAGIC Source Simulator (MSS) into the application workflow, providing the numerical backbone for evaluating the detectability of 4FGL sources with Imaging Atmospheric Cherenkov Telescopes.
+The MSS takes as input a spectral model for the candidate source (typically a power-law parametrised by flux normalisation and spectral index), the instrument response functions (IRFs) of the target IACT, and the assumed observation time $T_{\text{obs}}$; it returns an estimate of the predicted detection significance $S_{\text{pred}}$.
+
+% TODO: expand with specific MSS API call signature once integration code is finalised
+
+The detectability of each source is quantified within the application by a composite scoring metric that combines three observable quantities: the detection significance $\sigma$ drawn from the source's catalog entry, the integrated photon flux above 1\,GeV $F_{1000}$ (in units of $\text{ph\,cm}^{-2}\text{s}^{-1}$), and the cross-match confidence $c \in [0, 1]$.
+The score is computed as:
+\begin{equation}
+    S = \text{clamp}\!\left(5\,\sigma + 6\,\log_{10}\!\left(F_{1000} \times 10^{13} + 1\right) + 40\,c,\; 0,\; 100\right)
+\end{equation}
+Sources are then classified into three detectability tiers: \emph{low} ($S < 40$), \emph{medium} ($40 \le S < 70$), and \emph{high} ($S \ge 70$).
+The scoring weights were chosen so that a source with significance $\sigma \approx 10$, typical flux, and full cross-match confidence yields a score in the medium-to-high range, consistent with the expectation that well-established \textit{Fermi} sources with confirmed TeV counterparts should rank highly.
+
+For sources with MSS simulation results, the statistical significance of detection is evaluated following the Li \& Ma formalism \citep{LiMa1983}:
+\begin{equation}
+    S_{\text{LiMa}} = \sqrt{2}\left[N_{\text{on}}\ln\!\frac{(1+\alpha)N_{\text{on}}}{\alpha(N_{\text{on}}+N_{\text{off}})} + N_{\text{off}}\ln\!\frac{(1+\alpha)N_{\text{off}}}{N_{\text{on}}+N_{\text{off}}}\right]^{1/2}
+\end{equation}
+where $N_{\text{on}}$ and $N_{\text{off}}$ are the event counts in the signal and background control regions, and $\alpha$ is the ratio of on-to-off exposure.
+
+The user interface was designed to present detectability results in an accessible, astronomy-oriented layout.
+The main navigation provides direct routes to the source catalog browser, the analytics dashboard, and the interactive sky map.
+Each source detail page displays the unified source record, all associated catalog entries with their native metadata fields, and the computed detectability score with tier classification.
+The analytics dashboard aggregates detection trends, catalog comparison breakdowns, and a log-spaced significance histogram across the full source set.
+
+Sandra Dembińska also authored the user-facing documentation and in-application instructions that guide users through catalog browsing, filter usage, sky map interaction, and interpretation of detectability estimates.
+The documentation is structured to serve both the domain expert seeking specific catalog data and the general user unfamiliar with gamma-ray astronomy conventions.
+
+\section{Application frontend  -- Wojciech Jabłoński}
+
+Wojciech Jabłoński established the frontend architecture and built the shared infrastructure that all other frontend work depends on.
+The application is a single-page application (SPA) built with React~19, TypeScript~5.9, and Vite~8, which provides sub-second hot-module replacement during development and optimised production bundles via Rollup.
+
+The reusable component library was built as part of this contribution and provides a consistent foundation across all pages.
+Key components include \texttt{DataTable} (a generic sortable table with configurable column definitions and loading/empty states), \texttt{DataTableFilters} (a popover-based filter panel supporting text, numeric, and multi-select filter types), \texttt{DataTablePagination} (page size and navigation controls), and \texttt{NavigationHeader} (responsive top bar with mobile hamburger menu, active-link highlighting, and language switcher).
+Primitive UI elements — buttons, cards, badges, dialogs, sliders, and command menus — are sourced from the shadcn/ui library built on top of Radix UI, which provides accessible, unstyled components styled with Tailwind CSS~v4.
+The layout is fully responsive, adapting to mobile viewports through Tailwind CSS breakpoint utilities and a collapsible hamburger navigation menu.
+
+All asynchronous data fetching is managed through TanStack React Query~v5.
+A \texttt{QueryClient} with a default stale time of five minutes is configured at the application root.
+Custom query hooks (\texttt{useSourcesData}, \texttt{useSourceDetail}, \texttt{useSourceCatalogEntries}) encapsulate fetch logic and surface \texttt{isLoading}, \texttt{isError}, and \texttt{data} states to consuming components, keeping data-fetching and presentation concerns cleanly separated.
+The Vite development server proxies all \texttt{/api} requests to the Django backend, configurable via the \texttt{VITE\_PROXY\_TARGET} environment variable.
+
+Code quality tooling configured as part of this contribution includes ESLint, Prettier, and Husky pre-commit hooks that enforce linting and formatting before every commit.
+
+The architecture deliberately avoids a global state management library.
+All shared state is either query cache (React Query) or local component state (\texttt{useState}), which keeps the data flow unidirectional and makes individual components straightforward to test in isolation with Jest and Testing Library.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/placeholder_catalog_aggregation.png}
+    \caption{Sky distribution of ingested sources colour-coded by primary catalog (Fermi-LAT, HAWC, LHAASO, TeVCat), shown in Galactic coordinates with an Aitoff projection, as rendered by the analytics sky map view built into the application frontend.}
+    \label{fig:catalog_aggregation}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/placeholder_detectability.png}
+    \caption{Distribution of the composite detectability score $S$ across all ingested sources, shown as a histogram with tier boundaries at $S=40$ (low/medium) and $S=70$ (medium/high) indicated by dashed vertical lines. The inset pie chart shows the fraction of sources in each tier, broken down by source class (PSR, AGN, SNR, unassociated).}
+    \label{fig:detectability}
+\end{figure}
+
+\section{Main interface -- Mateusz Jaworski}
+
+Mateusz Jaworski implemented the main application interface through which users explore and analyse the aggregated catalog data.
+He was also responsible for the application routing and internationalisation.
+Routing is handled by React Router~v7 in \texttt{BrowserRouter} mode; all routes share an \texttt{AppLayout} wrapper that renders the \texttt{NavigationHeader} and an \texttt{<Outlet>} for the active page, covering the paths \texttt{/}, \texttt{/universe-map}, \texttt{/source-analytics}, \texttt{/sources}, and \texttt{/sources/:id}.
+Internationalisation is implemented with i18next~v26; both English and Polish translations are provided in \texttt{src/locales/en.json} and \texttt{src/locales/pl.json}, with the active language persisted in \texttt{localStorage} and toggled via the \texttt{LanguageSwitcher} component.
+
+The sources list page (\texttt{SourcesPage}) fetches data from the \texttt{/api/sources/filter/} endpoint with server-side pagination and supports the following filter dimensions:
+
+\begin{enumerate}
+    \item \textbf{Catalog} — restrict results to one or more of \texttt{FERMI}, \texttt{HAWC}, \texttt{LHAASO}, \texttt{TEVCAT}.
+    \item \textbf{Source class} — free-text match against the catalog metadata \texttt{source\_class} field (e.g.\ \texttt{PSR}, \texttt{AGN}, \texttt{SNR}).
+    \item \textbf{Coordinate bounds} — right ascension $\alpha \in [0^{\circ}, 360^{\circ}]$ and declination $\delta \in [-90^{\circ}, +90^{\circ}]$ range sliders.
+    \item \textbf{Detection significance} — minimum and maximum significance bounds.
+    \item \textbf{Flux} — minimum and maximum integrated flux above 1\,GeV.
+    \item \textbf{Minimum catalog count} — show only sources appearing in at least $n$ catalogs.
+\end{enumerate}
+
+Active filters are displayed as removable badges above the table, allowing users to inspect and clear individual constraints without navigating away.
+Pagination state and filter values are managed with \texttt{useState} hooks local to the page component; changes to any filter reset the page index to one to avoid stale result windows.
+
+The source detail page (\texttt{SourceDetailPage}) renders the unified \texttt{Source} record — name, equatorial coordinates, primary catalog, discovery date — followed by a table of all associated \texttt{CatalogEntry} records.
+Each catalog entry row displays the original catalog name, the detection method, cross-match confidence, and the full metadata payload rendered as a key–value list, allowing domain experts to inspect native catalog quantities without loss of information.
+
+The analytics dashboard (\texttt{CatalogAnalyticsPage}) is populated from the \texttt{/api/sources/analytics/} endpoint and presents four visualisation panels:
+\begin{enumerate}
+    \item \textbf{Catalog comparison} — bar chart of source counts per catalog.
+    \item \textbf{Detection trends} — time series of newly ingested sources by month.
+    \item \textbf{Significance histogram} — log-spaced bins over the range $[10^0, 10^4]$ (15 bins), with the 95th-percentile significance value annotated.
+    \item \textbf{Detectability breakdown} — stacked bar or pie chart showing the proportion of sources in each detectability tier (low, medium, high).
+\end{enumerate}
+
+All data-fetching in the main interface uses the custom React Query hooks provided by the shared infrastructure, so loading and error states are handled consistently across all views.
+The implementation keeps presentation components free of business logic: filter construction, parameter serialisation, and page-reset side effects are localised to the hook layer, making the page components straightforward to test and extend with additional filter dimensions in future releases.
+
+\section{Skymap -- Krzysztof Wilk}
+
+Krzysztof Wilk implemented both skymap views in the application: a 2D projected map rendered on an HTML \texttt{<canvas>} element using D3, and an interactive 3D celestial sphere built with React Three Fiber and Three.js.
+
+The 2D sky map component (\texttt{CatalogSkyMap}) supports four cartographic projections: Aitoff, Mollweide, equirectangular, and orthographic.
+The active projection is selected at runtime from a dropdown control and applied via the corresponding \texttt{d3-geo} projection function.
+Sources can be displayed in either the equatorial coordinate system $(\alpha, \delta)$ or the Galactic system $(l, b)$.
+The conversion from equatorial to Galactic coordinates is implemented analytically using the standard transformation defined by the J2000 North Galactic Pole at $(\alpha_{\text{NGP}}, \delta_{\text{NGP}}) = (192.859\,48^{\circ},\; 27.128\,25^{\circ})$ and the ascending node offset $l_{\Omega} = 32.931\,92^{\circ}$:
+
+\begin{equation}
+    \sin b = \sin\delta\,\sin\delta_{\text{NGP}} + \cos\delta\,\cos\delta_{\text{NGP}}\,\cos(\alpha - \alpha_{\text{NGP}})
+\end{equation}
+\begin{equation}
+    l = \arctan\!\frac{\cos\delta\,\sin(\alpha - \alpha_{\text{NGP}})}{\sin\delta\,\cos\delta_{\text{NGP}} - \cos\delta\,\sin\delta_{\text{NGP}}\,\cos(\alpha - \alpha_{\text{NGP}})} + l_{\Omega}
+\end{equation}
+
+Source points are drawn as filled circles whose radii are scaled with detection significance using a square-root scale:
+\begin{equation}
+    r = r_{\min} + (r_{\max} - r_{\min})\,\sqrt{\frac{\sigma}{\sigma_{\max}}}
+    \qquad r_{\min} = 1.8\,\text{px},\quad r_{\max} = 6.4\,\text{px}
+\end{equation}
+Each source is coloured according to its primary catalog using a fixed colour palette.
+The canvas is drawn on every frame update in a \texttt{useEffect} hook that iterates over all visible points and calls the Canvas 2D API directly, avoiding the overhead of DOM element creation per source.
+Pan and zoom are implemented with the D3 zoom behaviour (scale extent $1\times$–$12\times$), with the projection transform updated on every zoom event.
+Mouse hover interaction identifies the nearest projected point within a pixel-distance threshold and displays a tooltip with the source name, coordinates, and significance.
+A cone-search filter accepts centre coordinates $(\alpha_0, \delta_0)$ and a radius $\rho$, restricting the rendered set to sources satisfying $\theta(\cdot, \cdot) \le \rho$.
+
+The 3D view renders sources on a unit celestial sphere using Three.js geometry and React Three Fiber's declarative scene graph.
+To maintain interactive frame rates over the full source set ($\sim$\,7000 objects), sources are spatially aggregated using a HEALPix-based hierarchical clustering scheme \citep{Gorski2005}.
+The sky is subdivided into $N_{\text{side}} = 2^{\text{order}}$ HEALPix pixels in the NESTED indexing scheme; the \texttt{ang2pix} transformation maps a source's angular position $(\alpha, \delta)$ to its pixel index using two branches — an equatorial branch for $|z| = |\sin\delta| \le 2/3$ and a polar branch for $|z| > 2/3$ — mirroring the original Górski et al. algorithm \citep{Gorski2005}.
+At coarser zoom levels, nearby sources are merged into cluster markers (\texttt{ClusterMarkers}) with a count badge; as the camera approaches a region the hierarchy is refined, revealing individual source points.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/placeholder_skymap.png}
+    \caption{2D sky map in Galactic Aitoff projection (left) showing all ingested sources colour-coded by catalog, with significance-scaled point radii. The 3D celestial sphere view (right) shows hierarchical clustering at an intermediate zoom level.}
+    \label{fig:skymap}
+\end{figure}
+
+The two skymap views share the same underlying source data fetched via a dedicated API module that pages through the \texttt{/api/sources/} endpoint (up to $100 \times 200 = 20\,000$ items) and caches the result in the React Query store.
+Future work could replace the paged fetch with a dedicated bulk-export endpoint returning compressed GeoJSON or HEALPix-indexed tiles to reduce initial load time for large catalog releases.
+
+\begin{thebibliography}{99}
+\bibitem[Abdollahi et al.(2020)]{2020ApJS..247...33A} Abdollahi, S., Acero, F., Ackermann, M., et al.\ 2020, ApJS, 247, 1, 33. doi:10.3847/1538-4365/ab6bcb
+\bibitem[Li \& Ma(1983)]{LiMa1983} Li, T.-P., \& Ma, Y.-Q.\ 1983, ApJ, 272, 317. doi:10.1086/161295
+\bibitem[Górski et al.(2005)]{Gorski2005} Górski, K.~M., Hivon, E., Banday, A.~J., et al.\ 2005, ApJ, 622, 759. doi:10.1086/427976
+\end{thebibliography}
+
+\end{document}

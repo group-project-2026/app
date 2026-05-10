@@ -57,7 +57,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             date_value = parse_date(raw_value)
             if date_value is None:
                 return None, Response(
-                    {"error": f"Invalid value for '{param_name}': expected ISO date/datetime"},
+                    {"error": f"Invalid value for '{
+                        param_name}': expected ISO date/datetime"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             parsed = datetime.combine(
@@ -65,7 +66,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         if timezone.is_naive(parsed):
-            parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+            parsed = timezone.make_aware(
+                parsed, timezone.get_current_timezone())
 
         return parsed, None
 
@@ -127,7 +129,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             return 0
 
         ordered = sorted(values)
-        index = max(0, min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1))
+        index = max(0, min(len(ordered) - 1,
+                    math.ceil(len(ordered) * 0.95) - 1))
         return ordered[index]
 
     def _analytics_rows(self, sources):
@@ -135,7 +138,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         for source in sources:
             entry = self._preferred_entry(source)
-            metadata = entry.metadata if entry and isinstance(entry.metadata, dict) else {}
+            metadata = entry.metadata if entry and isinstance(
+                entry.metadata, dict) else {}
             significance = self._metadata_float(metadata, "significance")
             flux1000 = self._metadata_float(metadata, "flux1000")
             confidence = entry.confidence if entry else None
@@ -163,7 +167,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         for row in rows:
             if group_by == "year":
-                key = str(row["year"]) if row["year"] is not None else "Unknown"
+                key = str(
+                    row["year"]) if row["year"] is not None else "Unknown"
             elif group_by == "sourceClass":
                 key = row["sourceClass"] or "Unknown"
             elif group_by == "discoveryMethod":
@@ -194,7 +199,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         if group_by == "year":
-            result.sort(key=lambda item: item["group"] if item["group"] != "Unknown" else "9999")
+            result.sort(
+                key=lambda item: item["group"] if item["group"] != "Unknown" else "9999")
         else:
             result.sort(key=lambda item: item["group"])
 
@@ -235,7 +241,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"])
     def analytics(self, request):
         queryset = self.queryset
-        catalogs = [catalog for catalog in request.query_params.getlist("catalog") if catalog]
+        catalogs = [catalog for catalog in request.query_params.getlist(
+            "catalog") if catalog]
         if catalogs:
             queryset = queryset.filter(primary_catalog__in=catalogs)
 
@@ -246,7 +253,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(catalog_entries__original_name__icontains=search)
             ).distinct()
 
-        sources = list(queryset.prefetch_related("catalog_entries").order_by("primary_catalog", "unified_name"))
+        sources = list(queryset.prefetch_related(
+            "catalog_entries").order_by("primary_catalog", "unified_name"))
         rows = self._analytics_rows(sources)
 
         if not rows:
@@ -271,19 +279,25 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         catalog_rows = self._catalog_rows(rows)
         available_catalogs = [row["catalog"] for row in catalog_rows]
-        years = sorted({row["year"] for row in rows if row["year"] is not None})
+        years = sorted({row["year"]
+                       for row in rows if row["year"] is not None})
 
         emission_trend = []
         for year in years:
             point = {"year": year}
             for catalog in available_catalogs:
-                values = [row["emissionFlux"] for row in rows if row["year"] == year and row["catalog"] == catalog]
-                point[catalog] = round(sum(values) / len(values), 3) if values else None
+                values = [row["emissionFlux"] for row in rows if row["year"]
+                          == year and row["catalog"] == catalog]
+                point[catalog] = round(
+                    sum(values) / len(values), 3) if values else None
             emission_trend.append(point)
 
-        max_emission = max((item["avgEmissionFlux"] for item in catalog_rows), default=0)
-        max_significance = max((item["avgSignificance"] for item in catalog_rows), default=0)
-        max_detectability = max((item["avgDetectability"] for item in catalog_rows), default=0)
+        max_emission = max((item["avgEmissionFlux"]
+                           for item in catalog_rows), default=0)
+        max_significance = max((item["avgSignificance"]
+                               for item in catalog_rows), default=0)
+        max_detectability = max((item["avgDetectability"]
+                                for item in catalog_rows), default=0)
 
         radar_comparison = []
         for item in catalog_rows:
@@ -296,6 +310,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                     "highDetectabilityShare": item["highDetectabilityShare"],
                 }
             )
+
             # Build log-spaced histogram for significance per catalog
             def _build_significance_histogram(all_rows, bins=15, min_exp=0, max_exp=4):
                 # bins between 10^min_exp and 10^max_exp (inclusive)
@@ -364,15 +379,18 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 "groupingRows": self._group_rows(rows, request.query_params.get("group_by", "catalog")),
                 "emissionTrend": emission_trend,
                 "emissionComparison": [
-                    {"catalog": item["catalog"], "avgEmissionFlux": item["avgEmissionFlux"], "peakEmissionFlux": item["peakEmissionFlux"]}
+                    {"catalog": item["catalog"], "avgEmissionFlux": item["avgEmissionFlux"],
+                        "peakEmissionFlux": item["peakEmissionFlux"]}
                     for item in catalog_rows
                 ],
                 "significanceComparison": [
-                    {"catalog": item["catalog"], "avgSignificance": item["avgSignificance"], "p95Significance": item["p95Significance"], "peakSignificance": item["peakSignificance"]}
+                    {"catalog": item["catalog"], "avgSignificance": item["avgSignificance"],
+                        "p95Significance": item["p95Significance"], "peakSignificance": item["peakSignificance"]}
                     for item in catalog_rows
                 ],
                 "detectabilityComparison": [
-                    {"catalog": item["catalog"], "low": item["low"], "medium": item["medium"], "high": item["high"], "avgDetectability": item["avgDetectability"]}
+                    {"catalog": item["catalog"], "low": item["low"], "medium": item["medium"],
+                        "high": item["high"], "avgDetectability": item["avgDetectability"]}
                     for item in catalog_rows
                 ],
                 "radarComparison": radar_comparison,
@@ -423,7 +441,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             return value, None
 
-        catalogs = [catalog for catalog in params.getlist("catalog") if catalog]
+        catalogs = [catalog for catalog in params.getlist(
+            "catalog") if catalog]
         if catalogs:
             queryset = queryset.filter(primary_catalog__in=catalogs)
 
@@ -514,9 +533,11 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 catalog_entries__metadata__significance__lte=significance_max
             )
         if flux_min is not None:
-            queryset = queryset.filter(catalog_entries__metadata__flux1000__gte=flux_min)
+            queryset = queryset.filter(
+                catalog_entries__metadata__flux1000__gte=flux_min)
         if flux_max is not None:
-            queryset = queryset.filter(catalog_entries__metadata__flux1000__lte=flux_max)
+            queryset = queryset.filter(
+                catalog_entries__metadata__flux1000__lte=flux_max)
 
         discovery_start_raw = params.get("discovery_date_start")
         discovery_end_raw = params.get("discovery_date_end")
@@ -595,7 +616,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         }
 
         page = self.paginate_queryset(filtered_sources)
-        serializer = self.get_serializer(page if page is not None else filtered_sources, many=True)
+        serializer = self.get_serializer(
+            page if page is not None else filtered_sources, many=True)
 
         spatial_bounds = {
             "raMin": bounds["ra_min"],
@@ -740,7 +762,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             return value, None
 
         # Filter by catalog
-        catalogs = [catalog for catalog in params.getlist("catalog") if catalog]
+        catalogs = [catalog for catalog in params.getlist(
+            "catalog") if catalog]
         if catalogs:
             queryset = queryset.filter(primary_catalog__in=catalogs)
 
@@ -801,9 +824,11 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if confidence_min is not None:
-            queryset = queryset.filter(catalog_entries__confidence__gte=confidence_min)
+            queryset = queryset.filter(
+                catalog_entries__confidence__gte=confidence_min)
         if confidence_max is not None:
-            queryset = queryset.filter(catalog_entries__confidence__lte=confidence_max)
+            queryset = queryset.filter(
+                catalog_entries__confidence__lte=confidence_max)
 
         # Metadata numeric filters
         significance_min, error = parse_float("significance_min")
@@ -828,9 +853,11 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 catalog_entries__metadata__significance__lte=significance_max
             )
         if flux_min is not None:
-            queryset = queryset.filter(catalog_entries__metadata__flux1000__gte=flux_min)
+            queryset = queryset.filter(
+                catalog_entries__metadata__flux1000__gte=flux_min)
         if flux_max is not None:
-            queryset = queryset.filter(catalog_entries__metadata__flux1000__lte=flux_max)
+            queryset = queryset.filter(
+                catalog_entries__metadata__flux1000__lte=flux_max)
 
         # Minimum number of catalog entries per source
         min_catalog_count_raw = params.get("min_catalog_count")
