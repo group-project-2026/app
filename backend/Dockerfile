@@ -1,4 +1,4 @@
-FROM python:3.12.13-slim-bookworm
+FROM python:3.12.13-slim-bookworm AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -8,44 +8,53 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies including PostGIS/GIS libraries and scientific packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     libgeos-dev \
     libproj-dev \
     libgdal-dev \
-    gdal-bin \
-    postgresql-client \
-    netcat-openbsd \
-    ca-certificates \
-    curl \
     gcc \
     g++ \
     gfortran \
     build-essential \
     git \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry and Python dependencies
 COPY pyproject.toml poetry.lock* ./
 
 RUN pip install --upgrade pip setuptools && \
     pip install poetry && \
     poetry install --no-root --no-dev || poetry install --no-root
 
-# Copy project files
+
+FROM python:3.12.13-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libgeos-c1v5 \
+    libproj25 \
+    libgdal32 \
+    gdal-bin \
+    postgresql-client \
+    netcat-openbsd \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /app/data && \
-    mkdir -p /app/staticfiles
-
-# Collect static files
-RUN python manage.py collectstatic --noinput || true
-
-# Make entrypoint executable
-RUN chmod +x /app/entrypoint.sh
+RUN mkdir -p /app/data /app/staticfiles && \
+    python manage.py collectstatic --noinput || true && \
+    chmod +x /app/entrypoint.sh
 
 EXPOSE 8000
 
