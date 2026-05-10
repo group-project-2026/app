@@ -60,6 +60,14 @@ jobs:
             ghcr.io/group-project-2026/app/backend:latest
             ghcr.io/group-project-2026/app/backend:${{ github.sha }}
 
+      - name: Set backend package visibility to public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method PATCH \
+            /orgs/group-project-2026/packages/container/app%2Fbackend \
+            -f visibility=public || true
+
   build-frontend:
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true' || (github.event_name == 'workflow_dispatch' && inputs.build_frontend)
@@ -86,3 +94,11 @@ jobs:
           tags: |
             ghcr.io/group-project-2026/app/frontend:latest
             ghcr.io/group-project-2026/app/frontend:${{ github.sha }}
+
+      - name: Set frontend package visibility to public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method PATCH \
+            /orgs/group-project-2026/packages/container/app%2Ffrontend \
+            -f visibility=public || true
