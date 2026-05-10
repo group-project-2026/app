@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - release
+  workflow_dispatch:
+    inputs:
+      build_backend:
+        description: Build and push backend image
+        type: boolean
+        default: true
+      build_frontend:
+        description: Build and push frontend image
+        type: boolean
+        default: true
 
 jobs:
   detect-changes:
@@ -25,7 +35,7 @@ jobs:
 
   build-backend:
     needs: detect-changes
-    if: needs.detect-changes.outputs.backend == 'true'
+    if: needs.detect-changes.outputs.backend == 'true' || (github.event_name == 'workflow_dispatch' && inputs.build_backend)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,7 +62,7 @@ jobs:
 
   build-frontend:
     needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true'
+    if: needs.detect-changes.outputs.frontend == 'true' || (github.event_name == 'workflow_dispatch' && inputs.build_frontend)
     runs-on: ubuntu-latest
     permissions:
       contents: read
