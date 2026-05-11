@@ -110,6 +110,29 @@ class CatalogEntry(models.Model):
         help_text="Cross-match confidence (0.0-1.0)",
     )
 
+    # MAGIC Source Simulator Results (optional - skipped if spectral data incomplete)
+    magic_significance = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="MAGIC simulation: overall Li&Ma significance [sigma]",
+    )
+    magic_detectable = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="MAGIC simulation: source detectable with criteria (sigma≥5). None if not calculated.",
+    )
+    magic_calculated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of MAGIC simulation calculation",
+    )
+    magic_params_hash = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="Hash of observation parameters used for MAGIC calculation",
+    )
+
     # Tracking
     last_verified = models.DateTimeField(auto_now=True)
 

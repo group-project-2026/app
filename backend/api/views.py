@@ -903,6 +903,229 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = CatalogEntrySerializer(entries, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["get"])
+    def magic_simulation(self, request, id=None):
+        """
+        Run MAGIC source simulator with configurable observation parameters,
+        or return pre-calculated MAGIC data if available.
+
+        Returns raw simulation data (energy bins, spectral points, aggregate stats)
+        suitable for plotting on the frontend.
+
+        Query Parameters (all optional):
+        - zenith_angle: 'low' (0-30°), 'mid' (30-45°), 'high' (~60°) [default: low]
+        - observation_time_hours: float, hours of observation [default: 20]
+        - psf_deg: float, point spread function size in degrees [default: 0.1]
+        - extension_deg: float, source extension radius in degrees [default: 0.0]
+        - offset_degrad: float, performance degradation for off-axis (0-1] [default: 1.0]
+        - num_off_regions: int, background estimation regions [default: 3]
+        - min_events: int, minimum excess events for detection [default: 10]
+        - min_sbr: float, minimum signal-to-background ratio [default: 0.05]
+
+        Returns:
+        - Full simulation if all parameters valid and spectrum available
+        - Pre-calculated MAGIC data if available but no spectrum found
+        - 400 error if no spectral data and no pre-calculated results available
+
+        Example: /api/sources/123/magic-simulation/?zenith_angle=mid&observation_time_hours=50
+        """
+        from catalogs.mss_wrapper import build_spectrum_from_catalog, run_mss_simulation
+
+        source = self.get_object()
+
+        # Get primary catalog entry
+        try:
+            primary_entry = source.catalog_entries.get(
+                catalog_name=source.primary_catalog
+            )
+        except CatalogEntry.DoesNotExist:
+            return Response(
+                {"error": f"No catalog entry for primary catalog {source.primary_catalog}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Try to extract spectrum from catalog metadata
+        spectrum_func = build_spectrum_from_catalog(primary_entry.metadata)
+        
+        if spectrum_func is None:
+            # No spectrum available - return pre-calculated MAGIC data if exists
+            if primary_entry.magic_significance is not None:
+                return Response({
+                    "source": {
+                        "id": source.id,
+                        "unified_name": source.unified_name,
+                        "ra": source.ra,
+                        "dec": source.dec,
+                        "primary_catalog": source.primary_catalog,
+                    },
+                    "catalog_entry": {
+                        "original_name": primary_entry.original_name,
+                        "catalog_name": primary_entry.catalog_name,
+                        "confidence": primary_entry.confidence,
+                        "discovery_method": primary_entry.discovery_method,
+                    },
+                    "pre_calculated_magic": {
+                        "magic_significance": primary_entry.magic_significance,
+                        "magic_detectable": primary_entry.magic_detectable,
+                        "magic_calculated_at": primary_entry.magic_calculated_at,
+                        "observation_params": {
+                            "observation_time_hours": 20,
+                            "zenith_angle": "low",
+                            "note": "Default parameters used during catalog ingestion"
+                        }
+                    },
+                    "note": "Spectral data incomplete for on-demand calculation. Showing pre-calculated results from catalog ingestion."
+                })
+            else:
+                # No spectrum and no pre-calculated data
+                return Response(
+                    {"error": "Source lacks complete spectral data (need spectral_index and flux) and has no pre-calculated MAGIC statistics."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Parse query parameters with defaults and validation
+        def parse_param(param_name, param_type=float, default=None, min_val=None, max_val=None):
+            raw = request.query_params.get(param_name)
+            if raw is None or raw == "":
+                return default, None
+
+            try:
+                value = param_type(raw)
+            except (TypeError, ValueError):
+                return None, Response(
+                    {"error": f"Invalid '{param_name}': expected {param_type.__name__}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if min_val is not None and value < min_val:
+                return None, Response(
+                    {"error": f"'{param_name}' must be >= {min_val}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if max_val is not None and value > max_val:
+                return None, Response(
+                    {"error": f"'{param_name}' must be <= {max_val}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return value, None
+
+        # Parse observation parameters
+        zenith_angle, error = parse_param("zenith_angle", str, "low")
+        if error:
+            return error
+
+        if zenith_angle not in ("low", "mid", "high"):
+            return Response(
+                {"error": "zenith_angle must be 'low', 'mid', or 'high'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        observation_time_hours, error = parse_param(
+            "observation_time_hours", float, 20.0, min_val=0.1, max_val=10000
+        )
+        if error:
+            return error
+
+        psf_deg, error = parse_param(
+            "psf_deg", float, 0.1, min_val=0.0, max_val=1.0
+        )
+        if error:
+            return error
+
+        extension_deg, error = parse_param(
+            "extension_deg", float, 0.0, min_val=0.0, max_val=1.0
+        )
+        if error:
+            return error
+
+        offset_degrad, error = parse_param(
+            "offset_degrad", float, 1.0, min_val=0.01, max_val=1.0
+        )
+        if error:
+            return error
+
+        num_off_regions, error = parse_param(
+            "num_off_regions", int, 3, min_val=1, max_val=7
+        )
+        if error:
+            return error
+
+        min_events, error = parse_param(
+            "min_events", int, 10, min_val=1, max_val=1000
+        )
+        if error:
+            return error
+
+        min_sbr, error = parse_param(
+            "min_sbr", float, 0.05, min_val=0.0, max_val=1.0
+        )
+        if error:
+            return error
+
+        # Run simulation
+        try:
+            import math
+            import numpy as np
+            
+            results = run_mss_simulation(
+                spectrum_func=spectrum_func,
+                observation_time_hours=observation_time_hours,
+                zenith_angle=zenith_angle,
+                psf_deg=psf_deg,
+                extension_deg=extension_deg,
+                offset_degrad=offset_degrad,
+                num_off_regions=num_off_regions,
+                min_events=min_events,
+                min_sbr=min_sbr,
+            )
+
+            # Helper function to convert non-JSON-serializable values
+            def make_json_serializable(obj):
+                """Convert numpy arrays and NaN values to JSON-serializable types."""
+                if isinstance(obj, dict):
+                    return {k: make_json_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, (list, tuple)):
+                    return [make_json_serializable(item) for item in obj]
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, (np.floating, float)):
+                    if math.isnan(obj) or math.isinf(obj):
+                        return None
+                    return float(obj)
+                elif isinstance(obj, (np.integer, int)):
+                    return int(obj)
+                else:
+                    return obj
+
+            # Convert results to JSON-serializable format
+            results = make_json_serializable(results)
+
+            # Augment results with source information
+            results["source"] = {
+                "id": source.id,
+                "unified_name": source.unified_name,
+                "ra": source.ra,
+                "dec": source.dec,
+                "primary_catalog": source.primary_catalog,
+            }
+
+            # Add primary catalog entry info
+            results["catalog_entry"] = {
+                "original_name": primary_entry.original_name,
+                "catalog_name": primary_entry.catalog_name,
+                "confidence": primary_entry.confidence,
+                "discovery_method": primary_entry.discovery_method,
+            }
+
+            return Response(results)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Simulation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class CatalogEntryViewSet(viewsets.ReadOnlyModelViewSet):
     """
