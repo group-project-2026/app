@@ -179,7 +179,8 @@
     "catalogCoverageDescription": "Compare sample volume and class diversity across catalogs.",
     "map": {
       "title": "Catalog sky map",
-      "description": "Interactive sky projection with projection controls, catalog overlays, and timeline filtering.",
+      "description": "Interactive sky projection. Drag the map to rotate the sky, then refine with catalog overlays and timeline filtering.",
+      "dragToRotate": "Drag across the sky to rotate the projection.",
       "projection": "Projection",
       "coordinates": "Coordinate system",
       "equatorial": "Equatorial",

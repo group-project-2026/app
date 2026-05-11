@@ -183,7 +183,8 @@
     "catalogCoverageDescription": "Porównanie liczby próbek i różnorodności klas między katalogami.",
     "map": {
       "title": "Mapa nieba katalogów",
-      "description": "Interaktywna projekcja nieba z kontrolą projekcji, nakładkami katalogów i filtrem czasu.",
+      "description": "Interaktywna projekcja nieba. Przeciągnij mapę, aby obrócić niebo, a potem doprecyzuj widok przez nakładki katalogów i filtr czasu.",
+      "dragToRotate": "Przeciągnij po niebie, aby obrócić projekcję.",
       "projection": "Projekcja",
       "coordinates": "Układ współrzędnych",
       "equatorial": "Równikowy",
