@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
@@ -51,6 +52,7 @@ import {
   type SourceAnalyticsData
 } from "./api";
 import { CatalogSkyMap } from "./CatalogSkyMap";
+import type { CosmicPoint } from "@/components/universe-map/types";
 
 const GROUPING_OPTIONS_KEYS: Array<{
   value: GroupByDimension;
@@ -168,6 +170,20 @@ export function CatalogAnalyticsPage() {
   const [selectedCatalogs, setSelectedCatalogs] =
     useState<CatalogName[]>(SOURCE_CATALOGS);
   const [groupBy, setGroupBy] = useState<GroupByDimension>("catalog");
+
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const focusedObjectId = searchParams.get("id");
+  const focusedObject =
+    (location.state as { point?: CosmicPoint } | null)?.point ?? null;
+
+  useEffect(() => {
+    if (!focusedObjectId) return;
+    const el = document.getElementById("object-detail");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusedObjectId]);
 
   const analyticsQuery = useQuery<SourceAnalyticsData, Error>({
     queryKey: ["source-analytics", selectedCatalogs],
@@ -333,6 +349,88 @@ export function CatalogAnalyticsPage() {
             </CardHeader>
           </Card>
         ) : null}
+
+        {focusedObjectId && (
+          <Card id="object-detail">
+            <CardHeader>
+              <CardTitle>{t("analytics.objectDetail.title")}</CardTitle>
+              <CardDescription>
+                {t("analytics.objectDetail.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {focusedObject ? (
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <ObjectDetailField
+                    label={t("sources.columns.sourceName")}
+                    value={focusedObject.name}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.primaryCatalog")}
+                    value={formatCatalogLabel(focusedObject.primaryCatalog)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.ra")}
+                    value={`${focusedObject.ra.toFixed(4)}°`}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.dec")}
+                    value={`${focusedObject.dec.toFixed(4)}°`}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.sourceClass")}
+                    value={focusedObject.sourceClass ?? "-"}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.significance")}
+                    value={formatFloat(focusedObject.significance ?? undefined, 2)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.flux1000")}
+                    value={formatFlux(focusedObject.flux1000 ?? undefined)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.spectralIndex")}
+                    value={formatFloat(
+                      focusedObject.spectralIndex ?? undefined,
+                      3
+                    )}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.avgConfidence")}
+                    value={formatFloat(
+                      focusedObject.avgConfidence ?? undefined,
+                      3
+                    )}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.bestConfidence")}
+                    value={formatFloat(
+                      focusedObject.bestConfidence ?? undefined,
+                      3
+                    )}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.catalogCount")}
+                    value={String(focusedObject.catalogCount)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.associatedName")}
+                    value={focusedObject.associatedName ?? "-"}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.discoveryMethod")}
+                    value={focusedObject.discoveryMethod ?? "-"}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("analytics.objectDetail.empty")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid gap-6">
           <CatalogSkyMap selectedCatalogs={selectedCatalogs} />
@@ -730,5 +828,22 @@ export function CatalogAnalyticsPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+function ObjectDetailField({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-slate-900/40 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {label}
+      </p>
+      <p className="text-sm font-medium text-white/90 break-all">{value}</p>
+    </div>
   );
 }

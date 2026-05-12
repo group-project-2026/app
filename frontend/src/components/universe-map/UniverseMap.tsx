@@ -5,6 +5,7 @@ import { OrbitControls, Stars } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { CelestialSphere } from "./CelestialSphere";
 import { CoordinateOverlay } from "./CoordinateOverlay";
+import { MiniSphereClone } from "./MiniSphereClone";
 import { PointDetailPanel } from "./PointDetailPanel";
 import { Legend } from "./Legend";
 import { Filters } from "./Filters";
@@ -44,10 +45,12 @@ export function UniverseMap() {
 
   const handleCloseDetail = useCallback(() => {
     setSelectedPoint(null);
+    setFocusedCell(null);
   }, []);
 
   const handleClearFocus = useCallback(() => {
     setFocusedCell(null);
+    setSelectedPoint(null);
   }, []);
 
   const handleToggleCategory = useCallback((category: CosmicCategory) => {
@@ -61,6 +64,7 @@ export function UniverseMap() {
       return next;
     });
     setFocusedCell(null);
+    setSelectedPoint(null);
   }, []);
 
   useEffect(() => {
@@ -103,6 +107,13 @@ export function UniverseMap() {
           <pointLight position={[-10, -10, -10]} intensity={0.3} />
 
           <CelestialSphere />
+          {(selectedPoint || focusedCell) && (
+            <MiniSphereClone
+              points={filteredPoints}
+              selectedPoint={selectedPoint}
+              focusedCell={focusedCell}
+            />
+          )}
           <HierarchicalSky
             points={filteredPoints}
             onSelectPoint={handleSelectPoint}

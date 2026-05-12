@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { CosmicPoint } from "./types";
 import { getCategoryMeta } from "./types";
@@ -26,6 +27,7 @@ function formatPlain(value: string | null | undefined): string {
 
 export function PointDetailPanel({ point, onClose }: Props) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   if (!point) return null;
 
   const meta = getCategoryMeta(t)[point.category];
@@ -152,6 +154,23 @@ export function PointDetailPanel({ point, onClose }: Props) {
           </Section>
         </div>
       </ScrollArea>
+
+      <Separator className="bg-white/10 shrink-0" />
+
+      <div className="shrink-0 p-5 pt-4">
+        <Button
+          className="w-full"
+          variant="default"
+          onClick={() =>
+            navigate(
+              `/source-analytics?id=${encodeURIComponent(point.id)}#object-detail`,
+              { state: { point } }
+            )
+          }
+        >
+          {t("pointDetail.viewInAnalytics")}
+        </Button>
+      </div>
     </div>
   );
 }

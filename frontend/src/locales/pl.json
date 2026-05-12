@@ -53,7 +53,8 @@
     "spectralIndex": "Indeks spektralny",
     "confidence": "Pewność",
     "bestConfidence": "Najlepsza pewność",
-    "avgConfidence": "Średnia pewność"
+    "avgConfidence": "Średnia pewność",
+    "viewInAnalytics": "Otwórz w analityce"
   },
   "sources": {
     "title": "Źródła promieniowania gamma",
@@ -134,6 +135,12 @@
     "loadingDescription": "Pobieranie rekordów źródeł z backend API.",
     "errorTitle": "Analityka niedostępna",
     "errorDescription": "Nie udało się załadować danych analityki.",
+    "objectDetail": {
+      "title": "Szczegóły obiektu",
+      "description": "Pełne pomiary wybranego obiektu, w tym indeks spektralny.",
+      "empty": "Wybierz obiekt z mapy uniwersum aby zobaczyć szczegóły.",
+      "backToMap": "← Wróć do mapy uniwersum"
+    },
     "analysisScope": "Zakres analizy",
     "analysisScopeDescription": "Wybierz katalogi i typ porównania dla dashboardu.",
     "groupingsTitle": "Groupingi i agregacje pod analizę",
