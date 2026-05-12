@@ -49,7 +49,8 @@
     "spectralIndex": "Spectral index",
     "confidence": "Confidence",
     "bestConfidence": "Best confidence",
-    "avgConfidence": "Average confidence"
+    "avgConfidence": "Average confidence",
+    "viewInAnalytics": "Open in analytics"
   },
   "sources": {
     "title": "Gamma-Ray Sources",
@@ -130,6 +131,12 @@
     "loadingDescription": "Fetching source records from backend API.",
     "errorTitle": "Analytics unavailable",
     "errorDescription": "Failed to load analytics data.",
+    "objectDetail": {
+      "title": "Object details",
+      "description": "Full measurements for the selected object, including spectral index.",
+      "empty": "Pick an object on the universe map to see its details.",
+      "backToMap": "← Back to universe map"
+    },
     "analysisScope": "Analysis Scope",
     "analysisScopeDescription": "Select catalogs and comparison lens for the dashboard.",
     "groupingsTitle": "Groupings and Aggregations for Analysis",
