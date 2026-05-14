@@ -247,10 +247,27 @@
         "facets": "Facety"
       }
     },
-    "bubbleScore": "Wynik",
-    "bubbleSignificance": "Istotność",
-    "bubbleFlux": "Flux1000",
-    "bubbleConfidence": "Pewność",
+    "emissionTrendTitle": "Trend emisji",
+    "emissionTrendDescription": "Średni i szczytowy flux1000 według katalogów.",
+    "emissionMetrics": {
+      "avgFlux": "Średni flux1000",
+      "peakFlux": "Szczytowy flux1000"
+    },
+    "radarComparisonTitle": "Porównanie radarowe",
+    "radarComparisonDescription": "Wielowymiarowe porównanie katalogów pod względem istotności, strumienia, pewności, łączności i różnorodności klas.",
+    "radarMetrics": {
+      "significance": "Istotność",
+      "flux": "Strumień",
+      "confidence": "Pewność",
+      "connectivity": "Łączność",
+      "classDiversity": "Różnorodność klas"
+    },
+    "sortBy": "Sortuj po",
+    "sortOptions": {
+      "score": "Wynik",
+      "significance": "Istotność",
+      "flux": "Strumień"
+    },
     "topSourcesTitle": "Top źródła",
     "topSourcesDescription": "Najmocniejsze źródła posortowane po łącznym wyniku.",
     "topSourcesColumns": {
@@ -262,6 +279,29 @@
       "confidence": "Pewność",
       "catalogCount": "Liczba katalogów",
       "score": "Wynik"
+    },
+    "sampleCountTitle": "Liczba próbek na katalog",
+    "sampleCountDescription": "Liczba źródeł w każdym katalogu (skala logarytmiczna).",
+    "significanceComparisonTitle": "Porównanie istotności",
+    "significanceComparisonDescription": "Średnia i szczytowa istotność detekcji w katalogach.",
+    "tableColumns": {
+      "peakSignificance": "Szczytowa istotność"
+    },
+    "detectabilityMixTitle": "Miks wykrywalności",
+    "detectabilityMixDescription": "Rozkład poziomów wykrywalności (wysoka/średnia/niska) na katalog.",
+    "detectabilityBands": {
+      "high": "Wysoka (≥70)",
+      "medium": "Średnia (40–70)",
+      "low": "Niska (<40)"
+    },
+    "histogramOverlapTitle": "Histogram istotności (FERMI vs LHAASO)",
+    "histogramOverlapDescription": "Nakładający się histogram ukazujący różnice w rozkładzie istotności między katalogami FERMI i LHAASO.",
+    "radarMultiMetricTitle": "Radar: Porównanie wielowymiarowe",
+    "radarMultiMetricDescription": "Wykres radarowy porównujący indeks istotności, indeks wykrywalności i udział wysokiej wykrywalności w katalogach.",
+    "radarAxes": {
+      "significance": "Indeks Istotności",
+      "detectability": "Indeks Wykrywalności",
+      "highDetectability": "Udział Wysokiej Wykrywalności"
     }
   }
 }

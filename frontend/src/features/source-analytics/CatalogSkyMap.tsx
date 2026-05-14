@@ -11,9 +11,18 @@ import {
   geoEquirectangular,
   geoOrthographic,
   scaleSqrt,
+  geoPath,
+  geoGraticule,
+  select as d3Select,
   type GeoProjection
 } from "d3";
 import { geoAitoff, geoMollweide } from "d3-geo-projection";
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiLineString
+} from "geojson";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +33,6 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -176,6 +184,118 @@ function createProjection(
   return proj.scale(proj.scale() * zoom);
 }
 
+// Simplified Milky Way outline (visual reference)
+function getMilkyWayOutline() {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "MultiLineString",
+      coordinates: [
+        // Galactic plane
+        [
+          [-180, 0],
+          [-90, 0],
+          [0, 0],
+          [90, 0],
+          [180, 0]
+        ],
+        // Galactic bulge region (~-30 to -10 RA)
+        [
+          [-30, -5],
+          [-25, -8],
+          [-20, -10],
+          [-15, -8],
+          [-10, -5]
+        ],
+        // Andromeda region (~40-50 RA, ~40+ DEC)
+        [
+          [40, 40],
+          [45, 42],
+          [50, 43],
+          [55, 42]
+        ]
+      ]
+    }
+  } as Feature<MultiLineString>;
+}
+
+// Create constellation boundary grid
+function getConstellationGrid() {
+  const features: Array<Feature<LineString>> = [];
+  const raStep = 30; // RA steps in degrees
+  const decStep = 30; // DEC steps in degrees
+
+  // RA meridian lines
+  for (let ra = -180; ra <= 180; ra += raStep) {
+    const coords = [];
+    for (let dec = -90; dec <= 90; dec += 5) {
+      coords.push([ra, dec]);
+    }
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: coords },
+      properties: {}
+    });
+  }
+
+  // DEC parallel lines
+  for (let dec = -60; dec <= 60; dec += decStep) {
+    const coords = [];
+    for (let ra = -180; ra <= 180; ra += 5) {
+      coords.push([ra, dec]);
+    }
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: coords },
+      properties: {}
+    });
+  }
+
+  return {
+    type: "FeatureCollection",
+    features
+  } as FeatureCollection<LineString>;
+}
+
+// Create graticule labels (RA/DEC text markers)
+function getGraticuleLabelPoints(
+  projection: GeoProjection,
+  width: number,
+  height: number
+) {
+  const labels = [];
+  const raSteps = [0, 30, 60, 90, 120, 150, 180, -150, -120, -90, -60, -30];
+  const decSteps = [-60, -30, 0, 30, 60];
+
+  // RA labels on bottom
+  for (const ra of raSteps) {
+    const projected = projection([-ra, -60]);
+    if (projected && projected[0] >= 0 && projected[0] <= width) {
+      labels.push({
+        x: projected[0],
+        y: height - 6,
+        text: `${Math.abs(ra)}°`,
+        anchor: "middle"
+      });
+    }
+  }
+
+  // DEC labels on left
+  for (const dec of decSteps) {
+    const projected = projection([180, dec]);
+    if (projected && projected[1] >= 0 && projected[1] <= height) {
+      labels.push({
+        x: 6,
+        y: projected[1],
+        text: `${dec}°`,
+        anchor: "start"
+      });
+    }
+  }
+
+  return labels;
+}
+
 function formatStat(value: number | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "-";
@@ -188,6 +308,7 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const projectedPointsRef = useRef<ProjectedPoint[]>([]);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragRotationRef = useRef<SkyRotation>(DEFAULT_ROTATION);
@@ -208,9 +329,6 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
     null
   );
   const [hiddenCatalogs, setHiddenCatalogs] = useState<CatalogName[]>([]);
-
-  const [dateStart, setDateStart] = useState("");
-  const [dateEnd, setDateEnd] = useState("");
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -234,13 +352,115 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Render SVG celestial overlays (graticule, MW, constellations)
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || mapSize.width <= 0 || mapSize.height <= 0) {
+      return;
+    }
+
+    const projection = createProjection(
+      projectionKey,
+      mapSize.width,
+      mapSize.height,
+      projectionRotation,
+      zoomScale
+    );
+
+    const pathGenerator = geoPath(projection);
+
+    // Clear SVG
+    d3Select(svg).selectAll("*").remove();
+
+    const g = d3Select(svg)
+      .attr("width", mapSize.width)
+      .attr("height", mapSize.height)
+      .append("g");
+
+    // Render Milky Way outline
+    const mw = getMilkyWayOutline();
+    g.selectAll(".milkyway")
+      .data([mw])
+      .enter()
+      .append("path")
+      .attr("class", "milkyway")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(200, 150, 100, 0.4)")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "4,4");
+
+    // Render constellation grid
+    const grid = getConstellationGrid();
+    g.selectAll(".constgrid")
+      .data(grid.features)
+      .enter()
+      .append("path")
+      .attr("class", "constgrid")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(100, 150, 200, 0.15)")
+      .attr("stroke-width", 0.8);
+
+    // Render graticule (major lines)
+    const graticule = geoGraticule()
+      .step([30, 30])
+      .extentMajor([
+        [-180, -90],
+        [180, 90]
+      ]);
+    g.append("path")
+      .datum(graticule())
+      .attr("class", "graticule-major")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(148, 163, 184, 0.2)")
+      .attr("stroke-width", 0.6);
+
+    // Render graticule labels
+    const labels = getGraticuleLabelPoints(
+      projection,
+      mapSize.width,
+      mapSize.height
+    );
+    g.selectAll(".graticule-label")
+      .data(labels)
+      .enter()
+      .append("text")
+      .attr("class", "graticule-label")
+      .attr("x", (d) => d.x)
+      .attr("y", (d) => d.y)
+      .attr("text-anchor", (d) => d.anchor)
+      .attr("dominant-baseline", "middle")
+      .attr("font-size", "10px")
+      .attr("fill", "rgba(148, 163, 184, 0.6)")
+      .text((d) => d.text);
+
+    // Render ecliptic plane reference
+    const eclipticCoords: LineString["coordinates"] = [];
+    for (let ra = -180; ra <= 180; ra += 5) {
+      eclipticCoords.push([ra, 0]);
+    }
+    const eclipticLine: Feature<LineString> = {
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: eclipticCoords },
+      properties: {}
+    };
+    g.append("path")
+      .datum(eclipticLine)
+      .attr("class", "ecliptic")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(255, 200, 100, 0.25)")
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2,3");
+  }, [mapSize, projectionKey, projectionRotation, zoomScale]);
+
   const mapQuery = useQuery<SourceAnalyticsMapData, Error>({
-    queryKey: ["source-analytics-map", selectedCatalogs, dateStart, dateEnd],
+    queryKey: ["source-analytics-map", selectedCatalogs],
     queryFn: () =>
       fetchSourceAnalyticsMap({
-        catalogs: selectedCatalogs,
-        discoveryDateStart: dateStart || undefined,
-        discoveryDateEnd: dateEnd || undefined
+        catalogs: selectedCatalogs
       }),
     staleTime: 60 * 1000,
     enabled: selectedCatalogs.length > 0
@@ -576,25 +796,7 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">
-              {t("analytics.map.timeline")}
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                value={dateStart}
-                onChange={(event) => setDateStart(event.target.value)}
-              />
-              <Input
-                type="date"
-                value={dateEnd}
-                onChange={(event) => setDateEnd(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-end justify-end">
+          <div className="flex items-end justify-end lg:col-start-4">
             <Button type="button" variant="outline" onClick={resetView}>
               {t("analytics.map.resetView")}
             </Button>
@@ -628,6 +830,12 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
             onPointerCancel={onCanvasPointerCancel}
             onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick}
+          />
+
+          <svg
+            ref={svgRef}
+            className="absolute inset-0 pointer-events-none"
+            style={{ pointerEvents: "none" }}
           />
 
           {hoveredPoint ? (
