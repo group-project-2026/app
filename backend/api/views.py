@@ -57,17 +57,16 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             date_value = parse_date(raw_value)
             if date_value is None:
                 return None, Response(
-                    {"error": f"Invalid value for '{
-                        param_name}': expected ISO date/datetime"},
+                    {
+                        "error": f"Invalid value for '{
+                        param_name}': expected ISO date/datetime"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            parsed = datetime.combine(
-                date_value, time.max if is_end else time.min
-            )
+            parsed = datetime.combine(date_value, time.max if is_end else time.min)
 
         if timezone.is_naive(parsed):
-            parsed = timezone.make_aware(
-                parsed, timezone.get_current_timezone())
+            parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
 
         return parsed, None
 
@@ -129,8 +128,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             return 0
 
         ordered = sorted(values)
-        index = max(0, min(len(ordered) - 1,
-                    math.ceil(len(ordered) * 0.95) - 1))
+        index = max(0, min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1))
         return ordered[index]
 
     def _analytics_rows(self, sources):
@@ -138,8 +136,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         for source in sources:
             entry = self._preferred_entry(source)
-            metadata = entry.metadata if entry and isinstance(
-                entry.metadata, dict) else {}
+            metadata = (
+                entry.metadata if entry and isinstance(entry.metadata, dict) else {}
+            )
             significance = self._metadata_float(metadata, "significance")
             flux1000 = self._metadata_float(metadata, "flux1000")
             confidence = entry.confidence if entry else None
@@ -149,7 +148,11 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                     "catalog": source.primary_catalog,
                     "year": source.created_at.year if source.created_at else None,
                     "sourceClass": metadata.get("source_class") or "Unknown",
-                    "discoveryMethod": entry.discovery_method if entry and entry.discovery_method else "Unknown",
+                    "discoveryMethod": (
+                        entry.discovery_method
+                        if entry and entry.discovery_method
+                        else "Unknown"
+                    ),
                     "emissionFlux": flux1000 or 0,
                     "significanceSigma": significance or 0,
                     "detectability": self._detectability_score(
@@ -167,8 +170,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         for row in rows:
             if group_by == "year":
-                key = str(
-                    row["year"]) if row["year"] is not None else "Unknown"
+                key = str(row["year"]) if row["year"] is not None else "Unknown"
             elif group_by == "sourceClass":
                 key = row["sourceClass"] or "Unknown"
             elif group_by == "discoveryMethod":
@@ -189,18 +191,35 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 {
                     "group": group,
                     "sampleCount": len(items),
-                    "avgEmissionFlux": round(sum(emissions) / len(emissions), 3) if emissions else 0,
-                    "medianEmissionFlux": round(self._median(emissions), 3) if emissions else 0,
-                    "avgSignificance": round(sum(significances) / len(significances), 2) if significances else 0,
-                    "peakSignificance": round(max(significances), 2) if significances else 0,
-                    "avgDetectability": round(sum(detectabilities) / len(detectabilities), 1) if detectabilities else 0,
-                    "highDetectabilityShare": round((high_count / len(items)) * 100, 1) if items else 0,
+                    "avgEmissionFlux": (
+                        round(sum(emissions) / len(emissions), 3) if emissions else 0
+                    ),
+                    "medianEmissionFlux": (
+                        round(self._median(emissions), 3) if emissions else 0
+                    ),
+                    "avgSignificance": (
+                        round(sum(significances) / len(significances), 2)
+                        if significances
+                        else 0
+                    ),
+                    "peakSignificance": (
+                        round(max(significances), 2) if significances else 0
+                    ),
+                    "avgDetectability": (
+                        round(sum(detectabilities) / len(detectabilities), 1)
+                        if detectabilities
+                        else 0
+                    ),
+                    "highDetectabilityShare": (
+                        round((high_count / len(items)) * 100, 1) if items else 0
+                    ),
                 }
             )
 
         if group_by == "year":
             result.sort(
-                key=lambda item: item["group"] if item["group"] != "Unknown" else "9999")
+                key=lambda item: item["group"] if item["group"] != "Unknown" else "9999"
+            )
         else:
             result.sort(key=lambda item: item["group"])
 
@@ -222,13 +241,29 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 {
                     "catalog": catalog,
                     "sampleCount": len(items),
-                    "avgEmissionFlux": round(sum(emissions) / len(emissions), 3) if emissions else 0,
+                    "avgEmissionFlux": (
+                        round(sum(emissions) / len(emissions), 3) if emissions else 0
+                    ),
                     "peakEmissionFlux": round(max(emissions), 3) if emissions else 0,
-                    "avgSignificance": round(sum(significances) / len(significances), 2) if significances else 0,
-                    "p95Significance": round(self._p95(significances), 2) if significances else 0,
-                    "peakSignificance": round(max(significances), 2) if significances else 0,
-                    "avgDetectability": round(sum(detectabilities) / len(detectabilities), 1) if detectabilities else 0,
-                    "highDetectabilityShare": round((high_count / len(items)) * 100, 1) if items else 0,
+                    "avgSignificance": (
+                        round(sum(significances) / len(significances), 2)
+                        if significances
+                        else 0
+                    ),
+                    "p95Significance": (
+                        round(self._p95(significances), 2) if significances else 0
+                    ),
+                    "peakSignificance": (
+                        round(max(significances), 2) if significances else 0
+                    ),
+                    "avgDetectability": (
+                        round(sum(detectabilities) / len(detectabilities), 1)
+                        if detectabilities
+                        else 0
+                    ),
+                    "highDetectabilityShare": (
+                        round((high_count / len(items)) * 100, 1) if items else 0
+                    ),
                     "low": sum(1 for value in detectabilities if value < 40),
                     "medium": sum(1 for value in detectabilities if 40 <= value < 70),
                     "high": sum(1 for value in detectabilities if value >= 70),
@@ -241,8 +276,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"])
     def analytics(self, request):
         queryset = self.queryset
-        catalogs = [catalog for catalog in request.query_params.getlist(
-            "catalog") if catalog]
+        catalogs = [
+            catalog for catalog in request.query_params.getlist("catalog") if catalog
+        ]
         if catalogs:
             queryset = queryset.filter(primary_catalog__in=catalogs)
 
@@ -253,14 +289,23 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(catalog_entries__original_name__icontains=search)
             ).distinct()
 
-        sources = list(queryset.prefetch_related(
-            "catalog_entries").order_by("primary_catalog", "unified_name"))
+        sources = list(
+            queryset.prefetch_related("catalog_entries").order_by(
+                "primary_catalog", "unified_name"
+            )
+        )
         rows = self._analytics_rows(sources)
 
         if not rows:
             return Response(
                 {
-                    "headlineMetrics": {"samples": 0, "avgEmissionFlux": 0, "avgSignificance": 0, "avgDetectability": 0, "highDetectabilityShare": 0},
+                    "headlineMetrics": {
+                        "samples": 0,
+                        "avgEmissionFlux": 0,
+                        "avgSignificance": 0,
+                        "avgDetectability": 0,
+                        "highDetectabilityShare": 0,
+                    },
                     "catalogRows": [],
                     "groupingRows": [],
                     "emissionTrend": [],
@@ -279,34 +324,54 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         catalog_rows = self._catalog_rows(rows)
         available_catalogs = [row["catalog"] for row in catalog_rows]
-        years = sorted({row["year"]
-                       for row in rows if row["year"] is not None})
+        years = sorted({row["year"] for row in rows if row["year"] is not None})
 
         emission_trend = []
         for year in years:
             point = {"year": year}
             for catalog in available_catalogs:
-                values = [row["emissionFlux"] for row in rows if row["year"]
-                          == year and row["catalog"] == catalog]
-                point[catalog] = round(
-                    sum(values) / len(values), 3) if values else None
+                values = [
+                    row["emissionFlux"]
+                    for row in rows
+                    if row["year"] == year and row["catalog"] == catalog
+                ]
+                point[catalog] = round(sum(values) / len(values), 3) if values else None
             emission_trend.append(point)
 
-        max_emission = max((item["avgEmissionFlux"]
-                           for item in catalog_rows), default=0)
-        max_significance = max((item["avgSignificance"]
-                               for item in catalog_rows), default=0)
-        max_detectability = max((item["avgDetectability"]
-                                for item in catalog_rows), default=0)
+        max_emission = max(
+            (item["avgEmissionFlux"] for item in catalog_rows), default=0
+        )
+        max_significance = max(
+            (item["avgSignificance"] for item in catalog_rows), default=0
+        )
+        max_detectability = max(
+            (item["avgDetectability"] for item in catalog_rows), default=0
+        )
 
         radar_comparison = []
         for item in catalog_rows:
             radar_comparison.append(
                 {
                     "catalog": item["catalog"],
-                    "emissionIndex": 0 if max_emission == 0 else round((item["avgEmissionFlux"] / max_emission) * 100, 1),
-                    "significanceIndex": 0 if max_significance == 0 else round((item["avgSignificance"] / max_significance) * 100, 1),
-                    "detectabilityIndex": 0 if max_detectability == 0 else round((item["avgDetectability"] / max_detectability) * 100, 1),
+                    "emissionIndex": (
+                        0
+                        if max_emission == 0
+                        else round((item["avgEmissionFlux"] / max_emission) * 100, 1)
+                    ),
+                    "significanceIndex": (
+                        0
+                        if max_significance == 0
+                        else round(
+                            (item["avgSignificance"] / max_significance) * 100, 1
+                        )
+                    ),
+                    "detectabilityIndex": (
+                        0
+                        if max_detectability == 0
+                        else round(
+                            (item["avgDetectability"] / max_detectability) * 100, 1
+                        )
+                    ),
                     "highDetectabilityShare": item["highDetectabilityShare"],
                 }
             )
@@ -354,13 +419,19 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                         lo = edges[i]
                         hi = edges[i + 1]
                         label = f"{lo:.2g}-{hi:.2g}"
-                        bin_objs.append({
-                            "min": lo,
-                            "max": hi,
-                            "label": label,
-                            "count": counts[i],
-                            "percentage": round((counts[i] / total) * 100, 1) if total > 0 else 0,
-                        })
+                        bin_objs.append(
+                            {
+                                "min": lo,
+                                "max": hi,
+                                "label": label,
+                                "count": counts[i],
+                                "percentage": (
+                                    round((counts[i] / total) * 100, 1)
+                                    if total > 0
+                                    else 0
+                                ),
+                            }
+                        )
 
                     result[catalog] = {"bins": bin_objs, "total": total}
 
@@ -370,27 +441,55 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             {
                 "headlineMetrics": {
                     "samples": len(rows),
-                    "avgEmissionFlux": round(sum(emissions) / len(emissions), 3) if emissions else 0,
-                    "avgSignificance": round(sum(significances) / len(significances), 2) if significances else 0,
-                    "avgDetectability": round(sum(detectabilities) / len(detectabilities), 1) if detectabilities else 0,
-                    "highDetectabilityShare": round((sum(1 for value in detectabilities if value >= 70) / len(rows)) * 100, 1),
+                    "avgEmissionFlux": (
+                        round(sum(emissions) / len(emissions), 3) if emissions else 0
+                    ),
+                    "avgSignificance": (
+                        round(sum(significances) / len(significances), 2)
+                        if significances
+                        else 0
+                    ),
+                    "avgDetectability": (
+                        round(sum(detectabilities) / len(detectabilities), 1)
+                        if detectabilities
+                        else 0
+                    ),
+                    "highDetectabilityShare": round(
+                        (sum(1 for value in detectabilities if value >= 70) / len(rows))
+                        * 100,
+                        1,
+                    ),
                 },
                 "catalogRows": catalog_rows,
-                "groupingRows": self._group_rows(rows, request.query_params.get("group_by", "catalog")),
+                "groupingRows": self._group_rows(
+                    rows, request.query_params.get("group_by", "catalog")
+                ),
                 "emissionTrend": emission_trend,
                 "emissionComparison": [
-                    {"catalog": item["catalog"], "avgEmissionFlux": item["avgEmissionFlux"],
-                        "peakEmissionFlux": item["peakEmissionFlux"]}
+                    {
+                        "catalog": item["catalog"],
+                        "avgEmissionFlux": item["avgEmissionFlux"],
+                        "peakEmissionFlux": item["peakEmissionFlux"],
+                    }
                     for item in catalog_rows
                 ],
                 "significanceComparison": [
-                    {"catalog": item["catalog"], "avgSignificance": item["avgSignificance"],
-                        "p95Significance": item["p95Significance"], "peakSignificance": item["peakSignificance"]}
+                    {
+                        "catalog": item["catalog"],
+                        "avgSignificance": item["avgSignificance"],
+                        "p95Significance": item["p95Significance"],
+                        "peakSignificance": item["peakSignificance"],
+                    }
                     for item in catalog_rows
                 ],
                 "detectabilityComparison": [
-                    {"catalog": item["catalog"], "low": item["low"], "medium": item["medium"],
-                        "high": item["high"], "avgDetectability": item["avgDetectability"]}
+                    {
+                        "catalog": item["catalog"],
+                        "low": item["low"],
+                        "medium": item["medium"],
+                        "high": item["high"],
+                        "avgDetectability": item["avgDetectability"],
+                    }
                     for item in catalog_rows
                 ],
                 "radarComparison": radar_comparison,
@@ -441,8 +540,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             return value, None
 
-        catalogs = [catalog for catalog in params.getlist(
-            "catalog") if catalog]
+        catalogs = [catalog for catalog in params.getlist("catalog") if catalog]
         if catalogs:
             queryset = queryset.filter(primary_catalog__in=catalogs)
 
@@ -466,21 +564,13 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         if error:
             return error
 
-        if (
-            ra_min is not None
-            and ra_max is not None
-            and ra_min > ra_max
-        ):
+        if ra_min is not None and ra_max is not None and ra_min > ra_max:
             return Response(
                 {"error": "'ra_min' must be <= 'ra_max'"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if (
-            dec_min is not None
-            and dec_max is not None
-            and dec_min > dec_max
-        ):
+        if dec_min is not None and dec_max is not None and dec_min > dec_max:
             return Response(
                 {"error": "'dec_min' must be <= 'dec_max'"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -534,10 +624,12 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             )
         if flux_min is not None:
             queryset = queryset.filter(
-                catalog_entries__metadata__flux1000__gte=flux_min)
+                catalog_entries__metadata__flux1000__gte=flux_min
+            )
         if flux_max is not None:
             queryset = queryset.filter(
-                catalog_entries__metadata__flux1000__lte=flux_max)
+                catalog_entries__metadata__flux1000__lte=flux_max
+            )
 
         discovery_start_raw = params.get("discovery_date_start")
         discovery_end_raw = params.get("discovery_date_end")
@@ -591,9 +683,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
             cross_match = CrossMatchService()
             nearby_ids = list(
-                cross_match.find_nearby(ra_center, dec_center, radius_value).values_list(
-                    "id", flat=True
-                )
+                cross_match.find_nearby(
+                    ra_center, dec_center, radius_value
+                ).values_list("id", flat=True)
             )
             queryset = queryset.filter(id__in=nearby_ids)
 
@@ -617,7 +709,8 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         page = self.paginate_queryset(filtered_sources)
         serializer = self.get_serializer(
-            page if page is not None else filtered_sources, many=True)
+            page if page is not None else filtered_sources, many=True
+        )
 
         spatial_bounds = {
             "raMin": bounds["ra_min"],
@@ -686,7 +779,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             radius = float(request.query_params.get("radius", 0.5))
         except (TypeError, ValueError):
             return Response(
-                {"error": "Invalid parameters. Require: ra, dec (floats), radius (optional)"},
+                {
+                    "error": "Invalid parameters. Require: ra, dec (floats), radius (optional)"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -762,8 +857,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             return value, None
 
         # Filter by catalog
-        catalogs = [catalog for catalog in params.getlist(
-            "catalog") if catalog]
+        catalogs = [catalog for catalog in params.getlist("catalog") if catalog]
         if catalogs:
             queryset = queryset.filter(primary_catalog__in=catalogs)
 
@@ -777,7 +871,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Filter by source class from catalog-entry metadata
         source_classes = [
-            source_class for source_class in params.getlist("source_class") if source_class
+            source_class
+            for source_class in params.getlist("source_class")
+            if source_class
         ]
         if source_classes:
             source_class_filter = Q()
@@ -824,11 +920,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if confidence_min is not None:
-            queryset = queryset.filter(
-                catalog_entries__confidence__gte=confidence_min)
+            queryset = queryset.filter(catalog_entries__confidence__gte=confidence_min)
         if confidence_max is not None:
-            queryset = queryset.filter(
-                catalog_entries__confidence__lte=confidence_max)
+            queryset = queryset.filter(catalog_entries__confidence__lte=confidence_max)
 
         # Metadata numeric filters
         significance_min, error = parse_float("significance_min")
@@ -854,10 +948,12 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             )
         if flux_min is not None:
             queryset = queryset.filter(
-                catalog_entries__metadata__flux1000__gte=flux_min)
+                catalog_entries__metadata__flux1000__gte=flux_min
+            )
         if flux_max is not None:
             queryset = queryset.filter(
-                catalog_entries__metadata__flux1000__lte=flux_max)
+                catalog_entries__metadata__flux1000__lte=flux_max
+            )
 
         # Minimum number of catalog entries per source
         min_catalog_count_raw = params.get("min_catalog_count")
@@ -866,7 +962,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 min_catalog_count = int(min_catalog_count_raw)
             except (TypeError, ValueError):
                 return Response(
-                    {"error": "Invalid value for 'min_catalog_count': expected integer"},
+                    {
+                        "error": "Invalid value for 'min_catalog_count': expected integer"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if min_catalog_count < 1:
@@ -940,51 +1038,59 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except CatalogEntry.DoesNotExist:
             return Response(
-                {"error": f"No catalog entry for primary catalog {source.primary_catalog}"},
+                {
+                    "error": f"No catalog entry for primary catalog {source.primary_catalog}"
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         # Try to extract spectrum from catalog metadata
         spectrum_func = build_spectrum_from_catalog(primary_entry.metadata)
-        
+
         if spectrum_func is None:
             # No spectrum available - return pre-calculated MAGIC data if exists
             if primary_entry.magic_significance is not None:
-                return Response({
-                    "source": {
-                        "id": source.id,
-                        "unified_name": source.unified_name,
-                        "ra": source.ra,
-                        "dec": source.dec,
-                        "primary_catalog": source.primary_catalog,
-                    },
-                    "catalog_entry": {
-                        "original_name": primary_entry.original_name,
-                        "catalog_name": primary_entry.catalog_name,
-                        "confidence": primary_entry.confidence,
-                        "discovery_method": primary_entry.discovery_method,
-                    },
-                    "pre_calculated_magic": {
-                        "magic_significance": primary_entry.magic_significance,
-                        "magic_detectable": primary_entry.magic_detectable,
-                        "magic_calculated_at": primary_entry.magic_calculated_at,
-                        "observation_params": {
-                            "observation_time_hours": 20,
-                            "zenith_angle": "low",
-                            "note": "Default parameters used during catalog ingestion"
-                        }
-                    },
-                    "note": "Spectral data incomplete for on-demand calculation. Showing pre-calculated results from catalog ingestion."
-                })
+                return Response(
+                    {
+                        "source": {
+                            "id": source.id,
+                            "unified_name": source.unified_name,
+                            "ra": source.ra,
+                            "dec": source.dec,
+                            "primary_catalog": source.primary_catalog,
+                        },
+                        "catalog_entry": {
+                            "original_name": primary_entry.original_name,
+                            "catalog_name": primary_entry.catalog_name,
+                            "confidence": primary_entry.confidence,
+                            "discovery_method": primary_entry.discovery_method,
+                        },
+                        "pre_calculated_magic": {
+                            "magic_significance": primary_entry.magic_significance,
+                            "magic_detectable": primary_entry.magic_detectable,
+                            "magic_calculated_at": primary_entry.magic_calculated_at,
+                            "observation_params": {
+                                "observation_time_hours": 20,
+                                "zenith_angle": "low",
+                                "note": "Default parameters used during catalog ingestion",
+                            },
+                        },
+                        "note": "Spectral data incomplete for on-demand calculation. Showing pre-calculated results from catalog ingestion.",
+                    }
+                )
             else:
                 # No spectrum and no pre-calculated data
                 return Response(
-                    {"error": "Source lacks complete spectral data (need spectral_index and flux) and has no pre-calculated MAGIC statistics."},
+                    {
+                        "error": "Source lacks complete spectral data (need spectral_index and flux) and has no pre-calculated MAGIC statistics."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
         # Parse query parameters with defaults and validation
-        def parse_param(param_name, param_type=float, default=None, min_val=None, max_val=None):
+        def parse_param(
+            param_name, param_type=float, default=None, min_val=None, max_val=None
+        ):
             raw = request.query_params.get(param_name)
             if raw is None or raw == "":
                 return default, None
@@ -993,7 +1099,9 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
                 value = param_type(raw)
             except (TypeError, ValueError):
                 return None, Response(
-                    {"error": f"Invalid '{param_name}': expected {param_type.__name__}"},
+                    {
+                        "error": f"Invalid '{param_name}': expected {param_type.__name__}"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -1027,9 +1135,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         if error:
             return error
 
-        psf_deg, error = parse_param(
-            "psf_deg", float, 0.1, min_val=0.0, max_val=1.0
-        )
+        psf_deg, error = parse_param("psf_deg", float, 0.1, min_val=0.0, max_val=1.0)
         if error:
             return error
 
@@ -1051,15 +1157,11 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         if error:
             return error
 
-        min_events, error = parse_param(
-            "min_events", int, 10, min_val=1, max_val=1000
-        )
+        min_events, error = parse_param("min_events", int, 10, min_val=1, max_val=1000)
         if error:
             return error
 
-        min_sbr, error = parse_param(
-            "min_sbr", float, 0.05, min_val=0.0, max_val=1.0
-        )
+        min_sbr, error = parse_param("min_sbr", float, 0.05, min_val=0.0, max_val=1.0)
         if error:
             return error
 
@@ -1067,7 +1169,7 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             import math
             import numpy as np
-            
+
             results = run_mss_simulation(
                 spectrum_func=spectrum_func,
                 observation_time_hours=observation_time_hours,

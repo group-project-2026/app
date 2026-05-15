@@ -1,11 +1,10 @@
 import os
-import sys
 import django
+from sources.models import CatalogEntry
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")
 django.setup()
 
-from sources.models import CatalogEntry
 
 # Check overall stats
 total = CatalogEntry.objects.count()
