@@ -92,7 +92,9 @@ class Command(BaseCommand):
 
         # Log configuration
         mode = "error-aware" if use_position_errors else "hardcoded-radius"
-        self.stdout.write(f"[ℹ] Mode: {mode}, Fallback radius: {match_radius}°, N-sigma: {n_sigma}")
+        self.stdout.write(
+            f"[ℹ] Mode: {mode}, Fallback radius: {match_radius}°, N-sigma: {n_sigma}"
+        )
 
         for catalog_name in catalogs:
             self._ingest_catalog(catalog_name, cross_match)
