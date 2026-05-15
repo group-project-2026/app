@@ -350,10 +350,10 @@ def significance_li_ma(signal: float, background: float, alpha: float = 1.0) -> 
     if sum_sb < 0 or alpha <= 0:
         return -1.0
 
-    l = signal * np.log((signal / sum_sb) * (alpha + 1) / alpha)
-    m = background * np.log((background / sum_sb) * (alpha + 1))
+    li = signal * np.log((signal / sum_sb) * (alpha + 1) / alpha)
+    ma = background * np.log((background / sum_sb) * (alpha + 1))
 
-    log_likelihood = l + m
+    log_likelihood = li + ma
 
     if log_likelihood < 0:
         return 0.0
