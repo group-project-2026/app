@@ -170,7 +170,8 @@
       "avgSigma": "Śr. istotność",
       "avgConfidence": "Śr. pewność",
       "avgCatalogCount": "Śr. liczba katalogów",
-      "multiCatalogPercent": "% multi-katalogowe"
+      "multiCatalogPercent": "% multi-katalogowe",
+      "peakSignificance": "Szczytowa istotność"
     },
     "metrics": {
       "samples": "Próbki",
@@ -183,6 +184,84 @@
     "comparison": {
       "scienceScore": "Wynik naukowy",
       "multiCatalogShare": "Udział multi-katalogowych"
+    },
+    "magic": {
+      "title": "Podsumowanie MAGIC",
+      "description": "Wstępnie obliczona wykrywalność i istotność MAGIC wyprowadzona podczas ingestii katalogów.",
+      "metrics": {
+        "samples": "Źródła",
+        "withMagic": "Z danymi MAGIC",
+        "avgSignificance": "Średnia sigma MAGIC",
+        "detectableShare": "Udział wykrywalnych"
+      },
+      "chart": {
+        "avgMagicSignificance": "Średnia istotność MAGIC",
+        "detectableShare": "Udział wykrywalnych"
+      },
+      "tableColumns": {
+        "name": "Źródło",
+        "catalog": "Katalog",
+        "significance": "Sigma MAGIC",
+        "detectable": "Wykrywalność"
+      },
+      "detailTitle": "Szczegóły MAGIC",
+      "detailDescription": "Pola MAGIC z głównego wpisu katalogowego użyte podczas ingestii.",
+      "statusDetectable": "Wykrywalne",
+      "statusNotDetectable": "Niewykrywalne",
+      "statusUnavailable": "MAGIC niedostępne",
+      "booleanYes": "Tak",
+      "booleanNo": "Nie",
+      "loadingMagicDetail": "Ładowanie metadanych MAGIC…",
+      "noMagicData": "Brak danych MAGIC dla aktualnie wybranych katalogów.",
+      "fields": {
+        "significance": "Istotność MAGIC",
+        "detectable": "Wykrywalność MAGIC",
+        "calculatedAt": "Obliczono",
+        "paramsHash": "Hash parametrów"
+      },
+      "simulation": {
+        "title": "Symulacja MAGIC",
+        "description": "Wynik na żądanie z /api/sources/{id}/magic_simulation/ z binami spektralnymi.",
+        "loading": "Ładowanie symulacji MAGIC…",
+        "error": "Nie udało się załadować symulacji MAGIC.",
+        "noSpectralPoints": "Dla tego źródła nie zwrócono punktów spektralnych.",
+        "preCalculatedOnly": "To źródło zwróciło dane pre-calculated zamiast binów spektralnych.",
+        "metrics": {
+          "totalSignificance": "Łączna istotność",
+          "minObservationTime": "Min. czas obserwacji (h)",
+          "signalToBackground": "Sygnał / tło",
+          "totalSignalEvents": "Zdarzenia sygnału",
+          "detectedBins": "Wykryte biny",
+          "observationTime": "Czas obserwacji",
+          "detectionProbability": "Prawdopodobieństwo detekcji"
+        },
+        "flux": "Strumień",
+        "sed": {
+          "detectedSeries": "Wykryte punkty",
+          "upperLimitSeries": "Górne granice",
+          "xAxis": "Energia [GeV]",
+          "yAxis": "E² · dF/dE [TeV cm⁻² s⁻¹]",
+          "fluxLow": "Strumień (dolny)",
+          "fluxHigh": "Strumień (górny)"
+        },
+        "preCalculated": {
+          "significance": "Wstępna sigma",
+          "detectable": "Wstępna wykrywalność",
+          "calculatedAt": "Obliczono",
+          "note": "Notatka obserwacji"
+        },
+        "parameters": {
+          "observationTime": "Czas obserwacji (h)",
+          "zenithAngle": "Kąt zenitalny",
+          "psf": "PSF (stopnie)",
+          "extension": "Ekstencja (stopnie)",
+          "offset": "Offset (stopnie)",
+          "offRegions": "Regiony off",
+          "minEvents": "Min. zdarzeń",
+          "minSbr": "Min. S/B (%)",
+          "pulsarMode": "Tryb pulsara"
+        }
+      }
     },
     "catalogComparison": "Porównanie katalogów",
     "catalogComparisonDescription": "Porównanie katalogów przez wynik złożony i nakładanie katalogów.",
@@ -231,7 +310,12 @@
       "fluxIndex": "Indeks fluxu",
       "confidenceIndex": "Indeks pewności",
       "connectivityIndex": "Indeks łączności",
-      "classDiversityIndex": "Indeks różnorodności klas"
+      "classDiversityIndex": "Indeks różnorodności klas",
+      "significance": "Istotność",
+      "flux": "Strumień",
+      "confidence": "Pewność",
+      "connectivity": "Łączność",
+      "classDiversity": "Różnorodność klas"
     },
     "classMixTitle": "Miks klas źródeł",
     "classMixDescription": "Najczęstsze klasy źródeł ułożone warstwowo według katalogu.",
@@ -262,13 +346,6 @@
     },
     "radarComparisonTitle": "Porównanie radarowe",
     "radarComparisonDescription": "Wielowymiarowe porównanie katalogów pod względem istotności, strumienia, pewności, łączności i różnorodności klas.",
-    "radarMetrics": {
-      "significance": "Istotność",
-      "flux": "Strumień",
-      "confidence": "Pewność",
-      "connectivity": "Łączność",
-      "classDiversity": "Różnorodność klas"
-    },
     "sortBy": "Sortuj po",
     "sortOptions": {
       "score": "Wynik",
@@ -291,9 +368,6 @@
     "sampleCountDescription": "Liczba źródeł w każdym katalogu (skala logarytmiczna).",
     "significanceComparisonTitle": "Porównanie istotności",
     "significanceComparisonDescription": "Średnia i szczytowa istotność detekcji w katalogach.",
-    "tableColumns": {
-      "peakSignificance": "Szczytowa istotność"
-    },
     "detectabilityMixTitle": "Miks wykrywalności",
     "detectabilityMixDescription": "Rozkład poziomów wykrywalności (wysoka/średnia/niska) na katalog.",
     "detectabilityBands": {
@@ -310,5 +384,15 @@
       "detectability": "Indeks Wykrywalności",
       "highDetectability": "Udział Wysokiej Wykrywalności"
     }
+  },
+  "app": {
+    "name": "Obserwatorium Promieni Gamma"
+  },
+  "pages": {
+    "home": "Strona główna",
+    "universeMap": "Mapa Wszechświata",
+    "sources": "Źródła",
+    "sourceDetail": "Szczegóły źródła",
+    "analytics": "Analityka katalogów"
   }
 }
