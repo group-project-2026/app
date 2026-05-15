@@ -19,13 +19,13 @@ const MOCK_POINT: CosmicPoint = {
   discoveryMethod: "gamma-ray",
   bestConfidence: 0.95,
   avgConfidence: 0.85,
-  catalogCount: 3,
+  catalogCount: 3
 };
 
 describe("PointDetailPanel", () => {
   it("should render nothing when point is null", () => {
     const { container } = render(
-      <PointDetailPanel point={null} onClose={jest.fn()} />,
+      <PointDetailPanel point={null} onClose={jest.fn()} />
     );
     expect(container.innerHTML).toBe("");
   });
@@ -86,7 +86,7 @@ describe("PointDetailPanel", () => {
       "Catalog count",
       "Identification",
       "Measurements",
-      "Confidence",
+      "Confidence"
     ];
 
     for (const heading of headings) {
@@ -104,7 +104,7 @@ describe("PointDetailPanel", () => {
       flux1000: null,
       spectralIndex: null,
       bestConfidence: null,
-      avgConfidence: null,
+      avgConfidence: null
     };
     render(<PointDetailPanel point={sparsePoint} onClose={jest.fn()} />);
     const dashes = screen.getAllByText("—");
@@ -116,7 +116,8 @@ describe("PointDetailPanel", () => {
     const user = userEvent.setup();
     render(<PointDetailPanel point={MOCK_POINT} onClose={onClose} />);
 
-    const closeButton = screen.getByRole("button");
+    const buttons = screen.getAllByRole("button");
+    const closeButton = buttons[0];
     await user.click(closeButton);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -131,7 +132,7 @@ describe("PointDetailPanel", () => {
       ra: 10.68,
       dec: 41.27,
       sourceClass: "BLL",
-      associatedName: "Andromeda",
+      associatedName: "Andromeda"
     };
 
     render(<PointDetailPanel point={anotherPoint} onClose={jest.fn()} />);
