@@ -139,6 +139,30 @@ class SourceListSerializer(serializers.ModelSerializer):
                 return entry
         return entries[0]
 
+    def _get_entry_with_metadata_key(self, obj, key):
+        """
+        Prefer the primary catalog entry, but fall back to any entry that has the requested metadata key.
+        """
+        entries = list(obj.catalog_entries.all())
+        if not entries:
+            return None
+
+        preferred_entry = self._get_preferred_entry(obj)
+        if (
+            preferred_entry
+            and isinstance(preferred_entry.metadata, dict)
+            and preferred_entry.metadata.get(key) not in (None, "")
+        ):
+            return preferred_entry
+
+        for entry in entries:
+            if not isinstance(entry.metadata, dict):
+                continue
+            if entry.metadata.get(key) not in (None, ""):
+                return entry
+
+        return preferred_entry
+
     def _metadata_value(self, obj, key):
         entry = self._get_preferred_entry(obj)
         if not entry or not isinstance(entry.metadata, dict):
@@ -158,7 +182,10 @@ class SourceListSerializer(serializers.ModelSerializer):
         return max(entry.confidence for entry in entries)
 
     def get_source_class(self, obj):
-        return self._metadata_value(obj, "source_class")
+        entry = self._get_entry_with_metadata_key(obj, "source_class")
+        if not entry or not isinstance(entry.metadata, dict):
+            return None
+        return entry.metadata.get("source_class")
 
     def get_significance(self, obj):
         return self._metadata_value(obj, "significance")
@@ -170,7 +197,10 @@ class SourceListSerializer(serializers.ModelSerializer):
         return self._metadata_value(obj, "spectral_index")
 
     def get_associated_name(self, obj):
-        return self._metadata_value(obj, "associated_name")
+        entry = self._get_entry_with_metadata_key(obj, "associated_name")
+        if not entry or not isinstance(entry.metadata, dict):
+            return None
+        return entry.metadata.get("associated_name")
 
     def get_discovery_method(self, obj):
         entry = self._get_preferred_entry(obj)

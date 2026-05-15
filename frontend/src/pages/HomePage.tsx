@@ -13,40 +13,40 @@ export function HomePage() {
     {
       icon: Globe,
       title: t("navigation.universeMap"),
-      description: "Interaktywna mapa 3D obiektów kosmicznych z możliwością filtrowania i szczegółowych informacji",
+      description: t("home.features.universeMapDescription"),
       path: "/universe-map",
       color: "from-blue-500 to-cyan-500"
     },
     {
       icon: Database,
       title: t("navigation.sources"),
-      description: "Przeglądaj i filtruj źródła promieniowania gamma z katalogów astronomicznych",
+      description: t("home.features.sourcesDescription"),
       path: "/sources",
       color: "from-purple-500 to-pink-500"
     },
     {
       icon: BarChart3,
       title: t("navigation.analytics"),
-      description: "Zaawansowana analityka katalogów: emisja, istotność statystyczna i porównania",
+      description: t("home.features.analyticsDescription"),
       path: "/source-analytics",
       color: "from-orange-500 to-red-500"
     }
   ];
 
   return (
-    <main className="min-h-screen w-full flex flex-col text-white bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+    <main className="min-h-screen w-full flex flex-col text-white bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 relative">
       <CosmicParticles />
       <div className="container mx-auto px-4 py-16 flex-1 flex flex-col relative" style={{ zIndex: 1 }}>
         {/* Hero Section */}
         <div className="text-center mb-16 mt-8">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Gamma-Ray Observatory
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-linear-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            {t("home.heroTitle")}
           </h1>
           <p className="text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto">
-            Eksploruj wszechświat promieniowania gamma
+            {t("home.heroSubtitle")}
           </p>
           <p className="text-base md:text-lg text-slate-400 max-w-2xl mx-auto mt-4">
-            Platforma do analizy i wizualizacji źródeł promieniowania gamma z katalogów Fermi, HAWC, LHAASO, NED, TeVCat i MAGIC
+            {t("home.heroDescription")}
           </p>
         </div>
 
@@ -60,9 +60,9 @@ export function HomePage() {
                 className="relative overflow-hidden bg-slate-900/50 border-slate-800 hover:border-slate-700 transition-all duration-300 hover:scale-105 cursor-pointer group"
                 onClick={() => navigate(feature.path)}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
+                <div className={`absolute inset-0 bg-linear-to-br ${feature.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
                 <CardHeader>
-                  <div className={`h-12 w-12 rounded-lg bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4`}>
+                  <div className={`h-12 w-12 rounded-lg bg-linear-to-br ${feature.color} flex items-center justify-center mb-4`}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
                   <CardTitle className="text-xl">{feature.title}</CardTitle>
@@ -79,7 +79,7 @@ export function HomePage() {
                       navigate(feature.path);
                     }}
                   >
-                    Otwórz
+                    {t("home.open")}
                     <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </CardContent>
@@ -92,19 +92,19 @@ export function HomePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-auto">
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-4 text-center">
             <div className="text-3xl font-bold text-blue-400">6</div>
-            <div className="text-sm text-slate-400 mt-1">Katalogów</div>
+            <div className="text-sm text-slate-400 mt-1">{t("home.stats.catalogs")}</div>
           </div>
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-4 text-center">
             <div className="text-3xl font-bold text-purple-400">1000+</div>
-            <div className="text-sm text-slate-400 mt-1">Źródeł</div>
+            <div className="text-sm text-slate-400 mt-1">{t("home.stats.sources")}</div>
           </div>
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-4 text-center">
             <div className="text-3xl font-bold text-pink-400">8</div>
-            <div className="text-sm text-slate-400 mt-1">Klas obiektów</div>
+            <div className="text-sm text-slate-400 mt-1">{t("home.stats.classes")}</div>
           </div>
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-4 text-center">
             <div className="text-3xl font-bold text-orange-400">3D</div>
-            <div className="text-sm text-slate-400 mt-1">Wizualizacja</div>
+            <div className="text-sm text-slate-400 mt-1">{t("home.stats.visualization")}</div>
           </div>
         </div>
       </div>

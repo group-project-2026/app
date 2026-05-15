@@ -5,7 +5,9 @@ from collections import defaultdict
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q, Count, Min, Max
+from django.db.models import Q, Count, Min, Max, FloatField
+from django.db.models.functions import Cast
+from django.db.models.fields.json import KeyTextTransform
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
@@ -37,7 +39,17 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "id"
     filterset_fields = ["primary_catalog"]
     search_fields = ["unified_name", "catalog_entries__original_name"]
-    ordering_fields = ["unified_name", "created_at", "primary_catalog"]
+    ordering_fields = [
+        "unified_name",
+        "created_at",
+        "primary_catalog",
+        "source_class",
+        "associated_name",
+        "significance",
+        "flux1000",
+        "confidence",
+        "catalog_count",
+    ]
 
     def get_serializer_class(self):
         """Use lightweight serializer for list views."""
@@ -691,6 +703,10 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
 
         queryset = queryset.distinct().order_by("primary_catalog", "unified_name")
 
+        queryset = queryset.annotate(
+            catalog_count=Count("catalog_entries", distinct=True)
+        )
+
         filtered_sources = queryset
         bounds = filtered_sources.aggregate(
             ra_min=Min("ra"),
@@ -977,9 +993,70 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
             ).filter(catalog_count__gte=min_catalog_count)
 
         queryset = queryset.distinct()
+        # Always annotate catalog_count for serializer
+        queryset = queryset.annotate(
+            catalog_count=Count("catalog_entries", distinct=True)
+        )
 
-        # Apply pagination and ordering
-        queryset = self.filter_queryset(queryset)
+        ordering = params.get("ordering")
+        if ordering:
+            if ordering.startswith("-"):
+                field = ordering[1:]
+                reverse = True
+            else:
+                field = ordering
+                reverse = False
+
+            order_suffix = "-" if reverse else ""
+
+            if field == "significance":
+                queryset = queryset.annotate(
+                    max_significance=Max(
+                        Cast(
+                            KeyTextTransform(
+                                "significance", "catalog_entries__metadata"
+                            ),
+                            FloatField(),
+                        )
+                    )
+                ).order_by(f"{order_suffix}max_significance", "unified_name")
+            elif field == "flux1000":
+                # Sort by max flux1000 from catalog entries metadata
+                queryset = queryset.annotate(
+                    max_flux=Max(
+                        Cast(
+                            KeyTextTransform("flux1000", "catalog_entries__metadata"),
+                            FloatField(),
+                        )
+                    )
+                ).order_by(f"{order_suffix}max_flux", "unified_name")
+            elif field == "source_class":
+                queryset = queryset.annotate(
+                    source_class_sort=Max(
+                        KeyTextTransform("source_class", "catalog_entries__metadata")
+                    )
+                ).order_by(f"{order_suffix}source_class_sort", "unified_name")
+            elif field == "associated_name":
+                queryset = queryset.annotate(
+                    associated_name_sort=Max(
+                        KeyTextTransform("associated_name", "catalog_entries__metadata")
+                    )
+                ).order_by(f"{order_suffix}associated_name_sort", "unified_name")
+            elif field == "confidence":
+
+                queryset = queryset.annotate(
+                    best_confidence=Max("catalog_entries__confidence")
+                ).order_by(f"{order_suffix}best_confidence", "unified_name")
+            elif field == "catalog_count":
+                queryset = queryset.annotate(
+                    catalog_count=Count("catalog_entries", distinct=True)
+                ).order_by(f"{order_suffix}catalog_count", "unified_name")
+            elif field in ["unified_name", "created_at", "primary_catalog", "ra", "dec"]:
+                queryset = queryset.order_by(ordering)
+            else:
+                queryset = queryset.order_by("primary_catalog", "unified_name")
+        else:
+            queryset = queryset.order_by("primary_catalog", "unified_name")
 
         page = self.paginate_queryset(queryset)
         if page is not None:
