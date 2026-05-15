@@ -16,11 +16,9 @@ Key Changes from mss.py:
 - Importable functions with clear signatures
 """
 
-import math
 import numpy as np
 from scipy.integrate import quad
-from scipy.special import erfc
-from typing import Dict, List, Any, Tuple, Optional, Callable
+from typing import Dict, Any, Tuple, Optional, Callable
 
 
 # ============================================================================

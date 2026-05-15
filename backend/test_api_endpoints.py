@@ -22,7 +22,7 @@ if with_magic:
     response = client.get(f"/api/sources/{source_id}/magic-simulation/")
     if response.status_code == 200:
         data = response.json()
-        print(f"  ✓ API returned 200 OK")
+        print("  ✓ API returned 200 OK")
         print(f"  Response keys: {list(data.keys())}")
         if "aggregate_stats" in data:
             print(
@@ -37,18 +37,18 @@ if no_magic:
     source_id = no_magic.source.id
     print(f"\nTesting source WITHOUT MAGIC data (ID={source_id}):")
     print(f"  Name: {no_magic.original_name}")
-    print(f"  Existing MAGIC fields: all None")
+    print("  Existing MAGIC fields: all None")
 
     # Test the API endpoint
     response = client.get(f"/api/sources/{source_id}/magic-simulation/")
     if response.status_code == 400:
         data = response.json()
-        print(f"  ✓ API correctly returned 400 Bad Request")
+        print("  ✓ API correctly returned 400 Bad Request")
         print(f"  Error message: {data.get('error', 'N/A')}")
     elif response.status_code == 200:
         data = response.json()
-        print(f"  ✓ API returned 200 OK with pre-calculated data")
+        print("  ✓ API returned 200 OK with pre-calculated data")
         if "pre_calculated_magic" in data:
-            print(f"  Returned pre-calculated MAGIC data (if available)")
+            print("  Returned pre-calculated MAGIC data (if available)")
     else:
         print(f"  ✗ API returned {response.status_code}: {response.content}")

@@ -70,8 +70,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import quad
-from scipy.special import erfc, erfcinv
-from scipy import interpolate
 from enum import Enum
 import matplotlib.lines as mlines
 
@@ -176,7 +174,7 @@ def LoadEBL():
     f1 = open(pathebl, "r")
     line = f1.readline()
     firstlineEBL = list(map(float, line.split()))
-    nz = firstlineEBL[0]
+    # nz = firstlineEBL[0]
     zz = firstlineEBL[1:]
     # print(nz, zz)
     f1.close()
@@ -453,10 +451,10 @@ def SignificanceLiMa(s, b, alpha):
 
     if sumsb < 0 or alpha <= 0:
         return -1
-    l = s * np.log(s / sumsb * (alpha + 1) / alpha)
-    m = b * np.log(b / sumsb * (alpha + 1))
+    li = s * np.log(s / sumsb * (alpha + 1) / alpha)
+    ma = b * np.log(b / sumsb * (alpha + 1))
 
-    return -1 if l + m < 0 else np.sqrt((l + m) * 2)
+    return -1 if li + ma < 0 else np.sqrt((li + ma) * 2)
 
 
 def Checks():
