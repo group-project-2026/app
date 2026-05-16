@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { usePageTitle } from "@/hooks";
 import {
   Card,
   CardContent,
@@ -8,12 +9,20 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { useSourceDetail } from "./useSourceDetail";
 import { useSourceCatalogEntries } from "./useSourceCatalogEntries";
 
 export function SourceDetailPage() {
   const { id } = useParams<{ id: string }>();
+  usePageTitle("pages.sourceDetail");
   const { t } = useTranslation();
   const { data: source, isLoading, error } = useSourceDetail(id);
   const { data: catalogEntries } = useSourceCatalogEntries(id);
@@ -22,7 +31,9 @@ export function SourceDetailPage() {
     <main className="min-h-screen w-full">
       <div className="container mx-auto py-8 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">{t("sources.title")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("sources.title")}
+          </h1>
           <Link to="/sources">
             <Button variant="outline">{t("sources.backToSources")}</Button>
           </Link>
@@ -44,28 +55,40 @@ export function SourceDetailPage() {
             {source && (
               <div className="space-y-2">
                 <p>
-                  <span className="font-semibold">{t("sources.columns.sourceName")}:</span>{" "}
+                  <span className="font-semibold">
+                    {t("sources.columns.sourceName")}:
+                  </span>{" "}
                   {source.unified_name}
                 </p>
                 <p>
-                  <span className="font-semibold">{t("sources.columns.primaryCatalog")}:</span>{" "}
+                  <span className="font-semibold">
+                    {t("sources.columns.primaryCatalog")}:
+                  </span>{" "}
                   {source.primary_catalog}
                 </p>
                 <p>
-                  <span className="font-semibold">{t("sources.columns.ra")}:</span>{" "}
+                  <span className="font-semibold">
+                    {t("sources.columns.ra")}:
+                  </span>{" "}
                   {source.ra.toFixed(4)}
                 </p>
                 <p>
-                  <span className="font-semibold">{t("sources.columns.dec")}:</span>{" "}
+                  <span className="font-semibold">
+                    {t("sources.columns.dec")}:
+                  </span>{" "}
                   {source.dec.toFixed(4)}
                 </p>
                 <p>
-                  <span className="font-semibold">{t("sources.columns.catalogCount")}:</span>{" "}
+                  <span className="font-semibold">
+                    {t("sources.columns.catalogCount")}:
+                  </span>{" "}
                   {catalogEntries?.length ?? source.catalog_entries.length}
                 </p>
                 {source.distance !== null && (
                   <p>
-                    <span className="font-semibold">{t("sources.distanceDeg")}:</span>{" "}
+                    <span className="font-semibold">
+                      {t("sources.distanceDeg")}:
+                    </span>{" "}
                     {source.distance.toFixed(6)}
                   </p>
                 )}
@@ -77,16 +100,26 @@ export function SourceDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>{t("sources.catalogEntriesTitle")}</CardTitle>
-            <CardDescription>{t("sources.catalogEntriesDescription")}</CardDescription>
+            <CardDescription>
+              {t("sources.catalogEntriesDescription")}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("sources.catalogEntriesColumns.catalog")}</TableHead>
-                  <TableHead>{t("sources.catalogEntriesColumns.originalName")}</TableHead>
-                  <TableHead>{t("sources.catalogEntriesColumns.discoveryMethod")}</TableHead>
-                  <TableHead>{t("sources.catalogEntriesColumns.confidence")}</TableHead>
+                  <TableHead>
+                    {t("sources.catalogEntriesColumns.catalog")}
+                  </TableHead>
+                  <TableHead>
+                    {t("sources.catalogEntriesColumns.originalName")}
+                  </TableHead>
+                  <TableHead>
+                    {t("sources.catalogEntriesColumns.discoveryMethod")}
+                  </TableHead>
+                  <TableHead>
+                    {t("sources.catalogEntriesColumns.confidence")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

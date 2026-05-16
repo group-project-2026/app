@@ -166,7 +166,8 @@
       "avgSigma": "Avg significance",
       "avgConfidence": "Avg confidence",
       "avgCatalogCount": "Avg catalog count",
-      "multiCatalogPercent": "Multi-catalog %"
+      "multiCatalogPercent": "Multi-catalog %",
+      "peakSignificance": "Peak significance"
     },
     "metrics": {
       "samples": "Samples",
@@ -179,6 +180,84 @@
     "comparison": {
       "scienceScore": "Science score",
       "multiCatalogShare": "Multi-catalog share"
+    },
+    "magic": {
+      "title": "MAGIC summary",
+      "description": "Pre-calculated MAGIC detectability and significance derived from catalog ingestion.",
+      "metrics": {
+        "samples": "Sources",
+        "withMagic": "With MAGIC data",
+        "avgSignificance": "Average MAGIC sigma",
+        "detectableShare": "Detectable share"
+      },
+      "chart": {
+        "avgMagicSignificance": "Average MAGIC significance",
+        "detectableShare": "Detectable share"
+      },
+      "tableColumns": {
+        "name": "Source",
+        "catalog": "Catalog",
+        "significance": "MAGIC sigma",
+        "detectable": "Detectability"
+      },
+      "detailTitle": "MAGIC details",
+      "detailDescription": "MAGIC fields from the primary catalog entry used during ingestion.",
+      "statusDetectable": "Detectable",
+      "statusNotDetectable": "Not detectable",
+      "statusUnavailable": "MAGIC unavailable",
+      "booleanYes": "Yes",
+      "booleanNo": "No",
+      "loadingMagicDetail": "Loading MAGIC metadata…",
+      "noMagicData": "No MAGIC data available for the current catalog selection.",
+      "fields": {
+        "significance": "MAGIC significance",
+        "detectable": "MAGIC detectable",
+        "calculatedAt": "Calculated at",
+        "paramsHash": "Params hash"
+      },
+      "simulation": {
+        "title": "MAGIC simulation",
+        "description": "On-demand spectral bins returned by /api/sources/{id}/magic_simulation/.",
+        "loading": "Loading MAGIC simulation…",
+        "error": "Failed to load MAGIC simulation.",
+        "noSpectralPoints": "No spectral points were returned for this source.",
+        "preCalculatedOnly": "This source returned pre-calculated MAGIC data instead of spectral bins.",
+        "metrics": {
+          "totalSignificance": "Total significance",
+          "minObservationTime": "Min. observation time (h)",
+          "signalToBackground": "Signal / background",
+          "totalSignalEvents": "Signal events",
+          "detectedBins": "Detected bins",
+          "observationTime": "Observation time",
+          "detectionProbability": "Detection probability"
+        },
+        "flux": "Flux",
+        "sed": {
+          "detectedSeries": "Detected points",
+          "upperLimitSeries": "Upper limits",
+          "xAxis": "Energy [GeV]",
+          "yAxis": "E² · dF/dE [TeV cm⁻² s⁻¹]",
+          "fluxLow": "Flux (low)",
+          "fluxHigh": "Flux (high)"
+        },
+        "preCalculated": {
+          "significance": "Pre-calculated sigma",
+          "detectable": "Pre-calculated detectability",
+          "calculatedAt": "Calculated at",
+          "note": "Observation note"
+        },
+        "parameters": {
+          "observationTime": "Observation time (h)",
+          "zenithAngle": "Zenith angle",
+          "psf": "PSF (deg)",
+          "extension": "Extension (deg)",
+          "offset": "Offset (deg)",
+          "offRegions": "Off regions",
+          "minEvents": "Min. events",
+          "minSbr": "Min. S/B (%)",
+          "pulsarMode": "Pulsar mode"
+        }
+      }
     },
     "catalogComparison": "Catalog comparison",
     "catalogComparisonDescription": "Compare catalogs by composite science score and multi-catalog overlap.",
@@ -227,7 +306,12 @@
       "fluxIndex": "Flux index",
       "confidenceIndex": "Confidence index",
       "connectivityIndex": "Connectivity index",
-      "classDiversityIndex": "Class diversity index"
+      "classDiversityIndex": "Class diversity index",
+      "significance": "Significance",
+      "flux": "Flux",
+      "confidence": "Confidence",
+      "connectivity": "Connectivity",
+      "classDiversity": "Class diversity"
     },
     "classMixTitle": "Source class mix",
     "classMixDescription": "Top source classes stacked by catalog.",
@@ -262,13 +346,6 @@
     },
     "radarComparisonTitle": "Radar comparison",
     "radarComparisonDescription": "Multi-dimensional comparison of catalogs across significance, flux, confidence, connectivity, and class diversity.",
-    "radarMetrics": {
-      "significance": "Significance",
-      "flux": "Flux",
-      "confidence": "Confidence",
-      "connectivity": "Connectivity",
-      "classDiversity": "Class diversity"
-    },
     "sortBy": "Sort by",
     "sortOptions": {
       "score": "Score",
@@ -291,9 +368,6 @@
     "sampleCountDescription": "Number of sources in each catalog (logarithmic scale).",
     "significanceComparisonTitle": "Significance comparison",
     "significanceComparisonDescription": "Average and peak detection significance across catalogs.",
-    "tableColumns": {
-      "peakSignificance": "Peak significance"
-    },
     "detectabilityMixTitle": "Detectability mix",
     "detectabilityMixDescription": "Distribution of detectability levels (high/medium/low) per catalog.",
     "detectabilityBands": {
@@ -310,5 +384,15 @@
       "detectability": "Detectability Index",
       "highDetectability": "High Detectability Share"
     }
+  },
+  "app": {
+    "name": "Gamma-Ray Observatory"
+  },
+  "pages": {
+    "home": "Home",
+    "universeMap": "Universe Map",
+    "sources": "Sources",
+    "sourceDetail": "Source Details",
+    "analytics": "Catalog Analytics"
   }
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { usePageTitle } from "@/hooks";
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ const asStringArray = (value: unknown): string[] | undefined => {
 };
 
 export function SourcesPage() {
+  usePageTitle("pages.sources");
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -122,9 +124,7 @@ export function SourcesPage() {
         <Card>
           <CardHeader>
             <CardTitle>{t("sources.filters")}</CardTitle>
-            <CardDescription>
-              {t("sources.filtersDescription")}
-            </CardDescription>
+            <CardDescription>{t("sources.filtersDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <DataTableFilters

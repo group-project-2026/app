@@ -8,6 +8,10 @@ export interface CatalogEntry {
   discovery_method: string;
   confidence: number;
   last_verified: string;
+  magic_significance: number | null;
+  magic_detectable: boolean | null;
+  magic_calculated_at: string | null;
+  magic_params_hash: string | null;
 }
 
 export interface Source {
@@ -26,6 +30,8 @@ export interface Source {
   spectral_index: number | null;
   associated_name: string | null;
   discovery_method: string | null;
+  magic_significance: number | null;
+  magic_detectable: boolean | null;
 }
 
 export interface SourceDetail {
