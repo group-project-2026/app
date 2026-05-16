@@ -127,6 +127,24 @@ The detail page shows two sections:
 
 Use the **Back to Sources** button (top-left) to return to the list, preserving your previous filters and page position.
 
+### MAGIC Simulation
+
+If a source has sufficient spectral data, the detail page also shows a **MAGIC Simulation** section with pre-calculated results from the MAGIC Source Simulator (MSS).
+
+| Field | Description |
+|-------|-------------|
+| **MAGIC detectable** | Whether the source is predicted to be detectable (significance ≥ 5σ) |
+| **MAGIC significance** | Predicted detection significance |
+| **Calculated at** | Timestamp of the simulation run |
+
+To run an on-demand simulation with custom parameters, use the API endpoint directly:
+
+```
+GET /api/sources/{id}/magic_simulation/
+```
+
+Optional query parameters: `zenith_angle` (`low`/`mid`/`high`), `observation_time_hours` (default 20 h), `psf_deg` (default 0.1°), `extension_deg` (default 0°), `offset_deg` (default 1°), `num_off_regions` (default 3), `min_events` (default 10), `min_sbr` (default 0.05).
+
 ---
 
 ## 5. Analytics Dashboard
