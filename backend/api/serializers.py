@@ -15,8 +15,12 @@ class CatalogEntrySerializer(serializers.ModelSerializer):
             "discovery_method",
             "confidence",
             "last_verified",
+            "magic_significance",
+            "magic_detectable",
+            "magic_calculated_at",
+            "magic_params_hash",
         ]
-        read_only_fields = ["id", "last_verified"]
+        read_only_fields = ["id", "last_verified", "magic_calculated_at"]
 
 
 class SourceDetailSerializer(serializers.ModelSerializer):
@@ -93,6 +97,8 @@ class SourceListSerializer(serializers.ModelSerializer):
     spectral_index = serializers.SerializerMethodField()
     associated_name = serializers.SerializerMethodField()
     discovery_method = serializers.SerializerMethodField()
+    magic_significance = serializers.SerializerMethodField()
+    magic_detectable = serializers.SerializerMethodField()
 
     class Meta:
         model = Source
@@ -112,6 +118,8 @@ class SourceListSerializer(serializers.ModelSerializer):
             "spectral_index",
             "associated_name",
             "discovery_method",
+            "magic_significance",
+            "magic_detectable",
         ]
         read_only_fields = fields
 
@@ -167,6 +175,16 @@ class SourceListSerializer(serializers.ModelSerializer):
     def get_discovery_method(self, obj):
         entry = self._get_preferred_entry(obj)
         return entry.discovery_method if entry else None
+
+    def get_magic_significance(self, obj):
+        """Return MAGIC significance from primary catalog entry."""
+        entry = self._get_preferred_entry(obj)
+        return entry.magic_significance if entry else None
+
+    def get_magic_detectable(self, obj):
+        """Return MAGIC detectability from primary catalog entry."""
+        entry = self._get_preferred_entry(obj)
+        return entry.magic_detectable if entry else None
 
 
 class SourceMapPointSerializer(SourceListSerializer):

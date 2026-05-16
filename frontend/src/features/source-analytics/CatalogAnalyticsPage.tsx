@@ -1,14 +1,22 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Legend,
+  Line,
+  LineChart,
+  Radar,
+  RadarChart,
   XAxis,
   YAxis,
-  Tooltip
+  Tooltip,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
@@ -45,12 +53,15 @@ import type { CatalogName } from "../sources/types";
 import {
   buildAnalyticsGroupRows,
   fetchSourceAnalytics,
+  fetchBackendAnalytics,
   SOURCE_CATALOGS,
   SOURCE_CATALOG_META,
   type GroupByDimension,
-  type SourceAnalyticsData
+  type SourceAnalyticsData,
+  type BackendAnalyticsResponse
 } from "./api";
 import { CatalogSkyMap } from "./CatalogSkyMap";
+import type { CosmicPoint } from "@/components/universe-map/types";
 
 const GROUPING_OPTIONS_KEYS: Array<{
   value: GroupByDimension;
@@ -169,11 +180,35 @@ export function CatalogAnalyticsPage() {
     useState<CatalogName[]>(SOURCE_CATALOGS);
   const [groupBy, setGroupBy] = useState<GroupByDimension>("catalog");
 
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const focusedObjectId = searchParams.get("id");
+  const focusedObject =
+    (location.state as { point?: CosmicPoint } | null)?.point ?? null;
+
+  useEffect(() => {
+    if (!focusedObjectId) return;
+    const el = document.getElementById("object-detail");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusedObjectId]);
+
   const analyticsQuery = useQuery<SourceAnalyticsData, Error>({
     queryKey: ["source-analytics", selectedCatalogs],
     queryFn: () => fetchSourceAnalytics(selectedCatalogs),
     staleTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData
+  });
+
+  const backendAnalyticsQuery = useQuery<
+    BackendAnalyticsResponse | null,
+    Error
+  >({
+    queryKey: ["backend-analytics", selectedCatalogs],
+    queryFn: () => fetchBackendAnalytics(selectedCatalogs),
+    staleTime: 5 * 60 * 1000,
+    retry: false
   });
 
   const analyticsData = analyticsQuery.data;
@@ -298,6 +333,65 @@ export function CatalogAnalyticsPage() {
     selectedCatalogs.includes(row.catalog)
   );
 
+  // Prepare radar data
+  const radarData =
+    analyticsData?.radarComparison?.map((row) => ({
+      catalog: SOURCE_CATALOG_META[row.catalog].label,
+      Significance: row.significanceIndex,
+      Flux: row.fluxIndex,
+      Confidence: row.confidenceIndex,
+      Connectivity: row.connectivityIndex,
+      "Class Diversity": row.classDiversityIndex
+    })) ?? [];
+
+  const radarConfig = useMemo<ChartConfig>(
+    () => ({
+      Significance: {
+        label: t("analytics.radarMetrics.significance"),
+        color: "#2A9D8F"
+      },
+      Flux: {
+        label: t("analytics.radarMetrics.flux"),
+        color: "#E76F51"
+      },
+      Confidence: {
+        label: t("analytics.radarMetrics.confidence"),
+        color: "#F9C74F"
+      },
+      Connectivity: {
+        label: t("analytics.radarMetrics.connectivity"),
+        color: "#577590"
+      },
+      "Class Diversity": {
+        label: t("analytics.radarMetrics.classDiversity"),
+        color: "#B06CD5"
+      }
+    }),
+    [t]
+  );
+
+  // Prepare emission trend data (by catalog)
+  const emissionTrendData = selectedCatalogComparison.map((row) => ({
+    catalog: SOURCE_CATALOG_META[row.catalog].label,
+    avgFlux: row.avgFlux1000,
+    peakFlux: row.avgFlux1000 * 1.5, // estimated peak
+    avgSignificance: row.avgSignificance
+  }));
+
+  const emissionTrendConfig = useMemo<ChartConfig>(
+    () => ({
+      avgFlux: {
+        label: t("analytics.emissionMetrics.avgFlux"),
+        color: "#2E86AB"
+      },
+      peakFlux: {
+        label: t("analytics.emissionMetrics.peakFlux"),
+        color: "#A23B72"
+      }
+    }),
+    [t]
+  );
+
   return (
     <main className="min-h-screen w-full">
       <div className="container mx-auto py-8 space-y-6">
@@ -333,6 +427,88 @@ export function CatalogAnalyticsPage() {
             </CardHeader>
           </Card>
         ) : null}
+
+        {focusedObjectId && (
+          <Card id="object-detail">
+            <CardHeader>
+              <CardTitle>{t("analytics.objectDetail.title")}</CardTitle>
+              <CardDescription>
+                {t("analytics.objectDetail.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {focusedObject ? (
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <ObjectDetailField
+                    label={t("sources.columns.sourceName")}
+                    value={focusedObject.name}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.primaryCatalog")}
+                    value={formatCatalogLabel(focusedObject.primaryCatalog)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.ra")}
+                    value={`${focusedObject.ra.toFixed(4)}°`}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.dec")}
+                    value={`${focusedObject.dec.toFixed(4)}°`}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.sourceClass")}
+                    value={focusedObject.sourceClass ?? "-"}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.significance")}
+                    value={formatFloat(focusedObject.significance ?? undefined, 2)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.flux1000")}
+                    value={formatFlux(focusedObject.flux1000 ?? undefined)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.spectralIndex")}
+                    value={formatFloat(
+                      focusedObject.spectralIndex ?? undefined,
+                      3
+                    )}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.avgConfidence")}
+                    value={formatFloat(
+                      focusedObject.avgConfidence ?? undefined,
+                      3
+                    )}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.bestConfidence")}
+                    value={formatFloat(
+                      focusedObject.bestConfidence ?? undefined,
+                      3
+                    )}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.catalogCount")}
+                    value={String(focusedObject.catalogCount)}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.associatedName")}
+                    value={focusedObject.associatedName ?? "-"}
+                  />
+                  <ObjectDetailField
+                    label={t("sources.columns.discoveryMethod")}
+                    value={focusedObject.discoveryMethod ?? "-"}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("analytics.objectDetail.empty")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid gap-6">
           <CatalogSkyMap selectedCatalogs={selectedCatalogs} />
@@ -676,6 +852,133 @@ export function CatalogAnalyticsPage() {
           </Card>
         </section>
 
+        <section className="gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.emissionTrendTitle")}</CardTitle>
+              <CardDescription>
+                {t("analytics.emissionTrendDescription")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={emissionTrendConfig}>
+                <LineChart
+                  data={emissionTrendData}
+                  margin={{ left: 8, right: 8 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="catalog"
+                    tickFormatter={(value) => formatCatalogLabel(String(value))}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatFloat(value, 3)}
+                    width={56}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        valueFormatter={(value) => formatFloat(value, 3)}
+                      />
+                    }
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="avgFlux"
+                    stroke="var(--color-avgFlux)"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="peakFlux"
+                    stroke="var(--color-peakFlux)"
+                    strokeWidth={2}
+                    strokeDasharray="5,5"
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.radarComparisonTitle")}</CardTitle>
+              <CardDescription>
+                {t("analytics.radarComparisonDescription")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={radarConfig}>
+                <RadarChart
+                  data={radarData}
+                  margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                >
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="catalog" tick={{ fontSize: 11 }} />
+                  <PolarRadiusAxis
+                    angle={90}
+                    domain={[0, 100]}
+                    tickFormatter={(value) => formatFloat(value, 0)}
+                  />
+                  <Radar
+                    name={radarConfig.Significance.label}
+                    dataKey="Significance"
+                    stroke="var(--color-Significance)"
+                    fill="var(--color-Significance)"
+                    fillOpacity={0.15}
+                  />
+                  <Radar
+                    name={radarConfig.Flux.label}
+                    dataKey="Flux"
+                    stroke="var(--color-Flux)"
+                    fill="var(--color-Flux)"
+                    fillOpacity={0.15}
+                  />
+                  <Radar
+                    name={radarConfig.Confidence.label}
+                    dataKey="Confidence"
+                    stroke="var(--color-Confidence)"
+                    fill="var(--color-Confidence)"
+                    fillOpacity={0.15}
+                  />
+                  <Radar
+                    name={radarConfig.Connectivity.label}
+                    dataKey="Connectivity"
+                    stroke="var(--color-Connectivity)"
+                    fill="var(--color-Connectivity)"
+                    fillOpacity={0.15}
+                  />
+                  <Radar
+                    name={radarConfig["Class Diversity"].label}
+                    dataKey="Class Diversity"
+                    stroke="var(--color-Class Diversity)"
+                    fill="var(--color-Class Diversity)"
+                    fillOpacity={0.15}
+                  />
+                  <Legend />
+                  <Tooltip
+                    formatter={(value) => {
+                      if (
+                        typeof value === "number" ||
+                        typeof value === "string"
+                      ) {
+                        return formatFloat(value, 1);
+                      }
+
+                      return "-";
+                    }}
+                  />
+                </RadarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </section>
+
         <Card>
           <CardHeader>
             <CardTitle>{t("analytics.topSourcesTitle")}</CardTitle>
@@ -728,7 +1031,364 @@ export function CatalogAnalyticsPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* ============ NEW BACKEND ANALYTICS SECTIONS ============ */}
+
+        {backendAnalyticsQuery.data && (
+          <>
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("analytics.sampleCountTitle")}</CardTitle>
+                  <CardDescription>
+                    {t("analytics.sampleCountDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      sampleCount: {
+                        label: t("analytics.tableColumns.samples"),
+                        color: "#2A9D8F"
+                      }
+                    }}
+                  >
+                    <BarChart
+                      data={backendAnalyticsQuery.data.catalogRows}
+                      margin={{ left: 8, right: 8 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="catalog"
+                        tickFormatter={(value) =>
+                          formatCatalogLabel(String(value))
+                        }
+                      />
+                      <YAxis scale="log" domain={[1, 10000]} width={56} />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            valueFormatter={(value) => String(value)}
+                          />
+                        }
+                      />
+                      <Bar
+                        dataKey="sampleCount"
+                        fill="var(--color-sampleCount)"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {t("analytics.significanceComparisonTitle")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("analytics.significanceComparisonDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      avgSignificance: {
+                        label: t("analytics.tableColumns.avgSigma"),
+                        color: "#2A9D8F"
+                      },
+                      peakSignificance: {
+                        label: t("analytics.tableColumns.peakSignificance"),
+                        color: "#E76F51"
+                      }
+                    }}
+                  >
+                    <BarChart
+                      data={backendAnalyticsQuery.data.significanceComparison}
+                      margin={{ left: 8, right: 8 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="catalog"
+                        tickFormatter={(value) =>
+                          formatCatalogLabel(String(value))
+                        }
+                      />
+                      <YAxis
+                        tickFormatter={(value) => formatFloat(value, 0)}
+                        width={56}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            valueFormatter={(value) => formatFloat(value, 2)}
+                          />
+                        }
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey="avgSignificance"
+                        fill="var(--color-avgSignificance)"
+                      />
+                      <Bar
+                        dataKey="peakSignificance"
+                        fill="var(--color-peakSignificance)"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("analytics.detectabilityMixTitle")}</CardTitle>
+                  <CardDescription>
+                    {t("analytics.detectabilityMixDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      high: {
+                        label: t("analytics.detectabilityBands.high"),
+                        color: "#81B29A"
+                      },
+                      medium: {
+                        label: t("analytics.detectabilityBands.medium"),
+                        color: "#F2CC8F"
+                      },
+                      low: {
+                        label: t("analytics.detectabilityBands.low"),
+                        color: "#E07A5F"
+                      }
+                    }}
+                  >
+                    <BarChart
+                      data={backendAnalyticsQuery.data.detectabilityComparison}
+                      margin={{ left: 8, right: 8 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="catalog"
+                        tickFormatter={(value) =>
+                          formatCatalogLabel(String(value))
+                        }
+                      />
+                      <YAxis width={56} />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            valueFormatter={(value) => String(value)}
+                          />
+                        }
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey="high"
+                        stackId="detectability"
+                        fill="var(--color-high)"
+                      />
+                      <Bar
+                        dataKey="medium"
+                        stackId="detectability"
+                        fill="var(--color-medium)"
+                      />
+                      <Bar
+                        dataKey="low"
+                        stackId="detectability"
+                        fill="var(--color-low)"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+
+            {backendAnalyticsQuery.data.significanceHistogram && (
+              <section className="gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {t("analytics.histogramOverlapTitle")}
+                    </CardTitle>
+                    <CardDescription>
+                      {t("analytics.histogramOverlapDescription")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{
+                        FERMI: {
+                          label: SOURCE_CATALOG_META.FERMI.label,
+                          color: SOURCE_CATALOG_META.FERMI.color
+                        },
+                        LHAASO: {
+                          label: SOURCE_CATALOG_META.LHAASO.label,
+                          color: SOURCE_CATALOG_META.LHAASO.color
+                        }
+                      }}
+                    >
+                      <BarChart
+                        data={(() => {
+                          const edges =
+                            backendAnalyticsQuery.data.significanceHistogram
+                              ?.edges ?? [];
+                          const perCatalog =
+                            backendAnalyticsQuery.data.significanceHistogram
+                              ?.perCatalog ?? {};
+                          const bins = [];
+                          for (let i = 0; i < edges.length - 1; i++) {
+                            const lo = edges[i];
+                            const hi = edges[i + 1];
+                            const row: Record<string, string | number> = {
+                              bin: `${lo.toExponential(1)}-${hi.toExponential(1)}`
+                            };
+                            const fermi = perCatalog.FERMI?.bins?.[i];
+                            const lhaaso = perCatalog.LHAASO?.bins?.[i];
+                            row.FERMI = fermi?.count ?? 0;
+                            row.LHAASO = lhaaso?.count ?? 0;
+                            bins.push(row);
+                          }
+                          return bins;
+                        })()}
+                        margin={{ left: 8, right: 8 }}
+                      >
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="bin" tick={{ fontSize: 10 }} />
+                        <YAxis width={56} />
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent
+                              valueFormatter={(value) => String(value)}
+                            />
+                          }
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="FERMI"
+                          fill="var(--color-FERMI)"
+                          fillOpacity={0.7}
+                        />
+                        <Bar
+                          dataKey="LHAASO"
+                          fill="var(--color-LHAASO)"
+                          fillOpacity={0.7}
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("analytics.radarMultiMetricTitle")}</CardTitle>
+                  <CardDescription>
+                    {t("analytics.radarMultiMetricDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      Significance: {
+                        label: t("analytics.radarAxes.significance"),
+                        color: "#2A9D8F"
+                      },
+                      Detectability: {
+                        label: t("analytics.radarAxes.detectability"),
+                        color: "#E76F51"
+                      },
+                      HighDetectability: {
+                        label: t("analytics.radarAxes.highDetectability"),
+                        color: "#F9C74F"
+                      }
+                    }}
+                  >
+                    <RadarChart
+                      data={backendAnalyticsQuery.data.radarComparison.map(
+                        (row) => ({
+                          catalog: SOURCE_CATALOG_META[row.catalog]?.label,
+                          Significance: row.significanceIndex,
+                          Detectability: row.detectabilityIndex,
+                          HighDetectability: row.highDetectabilityShare
+                        })
+                      )}
+                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                    >
+                      <PolarGrid />
+                      <PolarAngleAxis
+                        dataKey="catalog"
+                        tick={{ fontSize: 11 }}
+                      />
+                      <PolarRadiusAxis
+                        angle={90}
+                        domain={[0, 100]}
+                        tickFormatter={(value) => formatFloat(value, 0)}
+                      />
+                      <Radar
+                        name="Significance"
+                        dataKey="Significance"
+                        stroke="var(--color-Significance)"
+                        fill="var(--color-Significance)"
+                        fillOpacity={0.2}
+                      />
+                      <Radar
+                        name="Detectability"
+                        dataKey="Detectability"
+                        stroke="var(--color-Detectability)"
+                        fill="var(--color-Detectability)"
+                        fillOpacity={0.2}
+                      />
+                      <Radar
+                        name="HighDetectability"
+                        dataKey="HighDetectability"
+                        stroke="var(--color-HighDetectability)"
+                        fill="var(--color-HighDetectability)"
+                        fillOpacity={0.2}
+                      />
+                      <Legend />
+                      <Tooltip
+                        formatter={(value) => {
+                          if (
+                            typeof value === "number" ||
+                            typeof value === "string"
+                          ) {
+                            return formatFloat(value, 1);
+                          }
+                          return "-";
+                        }}
+                      />
+                    </RadarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+          </>
+        )}
       </div>
     </main>
+  );
+}
+
+function ObjectDetailField({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-slate-900/40 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {label}
+      </p>
+      <p className="text-sm font-medium text-white/90 break-all">{value}</p>
+    </div>
   );
 }

@@ -3,6 +3,7 @@ from django.db import transaction
 
 from catalogs.loaders import LoaderFactory
 from catalogs.crossmatch import CrossMatchService
+from sources.models import CatalogEntry
 
 
 class Command(BaseCommand):
@@ -44,6 +45,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Clear all sources before ingesting",
         )
+        parser.add_argument(
+            "--skip-existing",
+            action="store_true",
+            help="Skip ingesting catalogs that already have entries in database",
+        )
 
     def handle(self, *args, **options):
         catalogs = options.get("catalogs", ["FERMI"])
@@ -51,6 +57,7 @@ class Command(BaseCommand):
         use_position_errors = options.get("use_position_errors", True)
         n_sigma = options.get("n_sigma", 2.5)
         clear = options.get("clear", False)
+        skip_existing = options.get("skip_existing", False)
 
         if clear:
             from sources.models import Source
@@ -58,6 +65,22 @@ class Command(BaseCommand):
             count = Source.objects.count()
             Source.objects.all().delete()
             self.stdout.write(f"[!] Cleared {count} existing sources")
+
+        # Filter out catalogs that already exist if --skip-existing is set
+        if skip_existing:
+            filtered_catalogs = []
+            for catalog_name in catalogs:
+                if CatalogEntry.objects.filter(catalog_name=catalog_name).exists():
+                    self.stdout.write(
+                        f"[⊘] Skipping {catalog_name} (already ingested)"
+                    )
+                else:
+                    filtered_catalogs.append(catalog_name)
+            catalogs = filtered_catalogs
+
+        if not catalogs:
+            self.stdout.write("[!] No catalogs to ingest")
+            return
 
         # Create cross-match service with error-aware matching
         cross_match = CrossMatchService(
@@ -69,7 +92,9 @@ class Command(BaseCommand):
 
         # Log configuration
         mode = "error-aware" if use_position_errors else "hardcoded-radius"
-        self.stdout.write(f"[ℹ] Mode: {mode}, Fallback radius: {match_radius}°, N-sigma: {n_sigma}")
+        self.stdout.write(
+            f"[ℹ] Mode: {mode}, Fallback radius: {match_radius}°, N-sigma: {n_sigma}"
+        )
 
         for catalog_name in catalogs:
             self._ingest_catalog(catalog_name, cross_match)

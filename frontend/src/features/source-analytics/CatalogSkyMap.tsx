@@ -3,7 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEventHandler
+  type PointerEventHandler
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -11,14 +11,18 @@ import {
   geoEquirectangular,
   geoOrthographic,
   scaleSqrt,
-  select,
-  zoom,
-  zoomIdentity,
-  type D3ZoomEvent,
-  type GeoProjection,
-  type ZoomTransform
+  geoPath,
+  geoGraticule,
+  select as d3Select,
+  type GeoProjection
 } from "d3";
 import { geoAitoff, geoMollweide } from "d3-geo-projection";
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiLineString
+} from "geojson";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +33,6 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -62,6 +65,15 @@ interface ProjectedPoint {
   y: number;
   radius: number;
 }
+
+type SkyRotation = [number, number, number];
+
+const DEFAULT_ROTATION: SkyRotation = [0, 0, 0];
+const ROTATION_SENSITIVITY = 0.28;
+const MAX_LATITUDE_ROTATION = 89;
+const MIN_ZOOM = 0.8;
+const MAX_ZOOM = 3;
+const ZOOM_SENSITIVITY = 0.15;
 
 const PROJECTION_OPTIONS: Array<{ value: ProjectionKey; labelKey: string }> = [
   { value: "aitoff", labelKey: "analytics.map.projections.aitoff" },
@@ -116,20 +128,24 @@ function toProjectionCoords(
 function createProjection(
   key: ProjectionKey,
   width: number,
-  height: number
+  height: number,
+  rotation: SkyRotation,
+  zoom: number = 1
 ): GeoProjection {
   const margin = 12;
-  const maxScale = Math.min(width, height) * 0.34;
+  const maxScale = Math.min(width, height) * 0.34 * zoom;
 
   if (key === "orthographic") {
     return geoOrthographic()
+      .rotate(rotation)
       .translate([width / 2, height / 2])
       .scale(maxScale)
       .clipAngle(90);
   }
 
   if (key === "mollweide") {
-    return geoMollweide()
+    const proj = geoMollweide()
+      .rotate(rotation)
       .fitExtent(
         [
           [margin, margin],
@@ -138,10 +154,12 @@ function createProjection(
         { type: "Sphere" }
       )
       .precision(0.2);
+    return proj.scale(proj.scale() * zoom);
   }
 
   if (key === "equirectangular") {
-    return geoEquirectangular()
+    const proj = geoEquirectangular()
+      .rotate(rotation)
       .fitExtent(
         [
           [margin, margin],
@@ -150,9 +168,11 @@ function createProjection(
         { type: "Sphere" }
       )
       .precision(0.2);
+    return proj.scale(proj.scale() * zoom);
   }
 
-  return geoAitoff()
+  const proj = geoAitoff()
+    .rotate(rotation)
     .fitExtent(
       [
         [margin, margin],
@@ -161,19 +181,119 @@ function createProjection(
       { type: "Sphere" }
     )
     .precision(0.2);
+  return proj.scale(proj.scale() * zoom);
 }
 
-function parseNumericInput(value: string): number | undefined {
-  if (!value.trim()) {
-    return undefined;
+// Simplified Milky Way outline (visual reference)
+function getMilkyWayOutline() {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "MultiLineString",
+      coordinates: [
+        // Galactic plane
+        [
+          [-180, 0],
+          [-90, 0],
+          [0, 0],
+          [90, 0],
+          [180, 0]
+        ],
+        // Galactic bulge region (~-30 to -10 RA)
+        [
+          [-30, -5],
+          [-25, -8],
+          [-20, -10],
+          [-15, -8],
+          [-10, -5]
+        ],
+        // Andromeda region (~40-50 RA, ~40+ DEC)
+        [
+          [40, 40],
+          [45, 42],
+          [50, 43],
+          [55, 42]
+        ]
+      ]
+    }
+  } as Feature<MultiLineString>;
+}
+
+// Create constellation boundary grid
+function getConstellationGrid() {
+  const features: Array<Feature<LineString>> = [];
+  const raStep = 30; // RA steps in degrees
+  const decStep = 30; // DEC steps in degrees
+
+  // RA meridian lines
+  for (let ra = -180; ra <= 180; ra += raStep) {
+    const coords = [];
+    for (let dec = -90; dec <= 90; dec += 5) {
+      coords.push([ra, dec]);
+    }
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: coords },
+      properties: {}
+    });
   }
 
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return undefined;
+  // DEC parallel lines
+  for (let dec = -60; dec <= 60; dec += decStep) {
+    const coords = [];
+    for (let ra = -180; ra <= 180; ra += 5) {
+      coords.push([ra, dec]);
+    }
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: coords },
+      properties: {}
+    });
   }
 
-  return parsed;
+  return {
+    type: "FeatureCollection",
+    features
+  } as FeatureCollection<LineString>;
+}
+
+// Create graticule labels (RA/DEC text markers)
+function getGraticuleLabelPoints(
+  projection: GeoProjection,
+  width: number,
+  height: number
+) {
+  const labels = [];
+  const raSteps = [0, 30, 60, 90, 120, 150, 180, -150, -120, -90, -60, -30];
+  const decSteps = [-60, -30, 0, 30, 60];
+
+  // RA labels on bottom
+  for (const ra of raSteps) {
+    const projected = projection([-ra, -60]);
+    if (projected && projected[0] >= 0 && projected[0] <= width) {
+      labels.push({
+        x: projected[0],
+        y: height - 6,
+        text: `${Math.abs(ra)}°`,
+        anchor: "middle"
+      });
+    }
+  }
+
+  // DEC labels on left
+  for (const dec of decSteps) {
+    const projected = projection([180, dec]);
+    if (projected && projected[1] >= 0 && projected[1] <= height) {
+      labels.push({
+        x: 6,
+        y: projected[1],
+        text: `${dec}°`,
+        anchor: "start"
+      });
+    }
+  }
+
+  return labels;
 }
 
 function formatStat(value: number | undefined): string {
@@ -188,33 +308,27 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const projectedPointsRef = useRef<ProjectedPoint[]>([]);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragRotationRef = useRef<SkyRotation>(DEFAULT_ROTATION);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const didDragRef = useRef(false);
+  const frameRef = useRef<number | null>(null);
 
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const [projectionKey, setProjectionKey] = useState<ProjectionKey>("aitoff");
   const [coordinateSystem, setCoordinateSystem] =
     useState<CoordinateSystem>("equatorial");
-  const [zoomTransform, setZoomTransform] =
-    useState<ZoomTransform>(zoomIdentity);
+  const [projectionRotation, setProjectionRotation] =
+    useState<SkyRotation>(DEFAULT_ROTATION);
+  const [zoomScale, setZoomScale] = useState(1);
   const [hoveredPoint, setHoveredPoint] = useState<SourceMapPoint | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [selectedPoint, setSelectedPoint] = useState<SourceMapPoint | null>(
     null
   );
   const [hiddenCatalogs, setHiddenCatalogs] = useState<CatalogName[]>([]);
-
-  const [dateStart, setDateStart] = useState("");
-  const [dateEnd, setDateEnd] = useState("");
-  const [queryError, setQueryError] = useState<string | null>(null);
-
-  const [raInput, setRaInput] = useState("");
-  const [decInput, setDecInput] = useState("");
-  const [radiusInput, setRadiusInput] = useState("");
-  const [radiusFilter, setRadiusFilter] = useState<{
-    ra: number;
-    dec: number;
-    radius: number;
-  } | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -238,22 +352,115 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Render SVG celestial overlays (graticule, MW, constellations)
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || mapSize.width <= 0 || mapSize.height <= 0) {
+      return;
+    }
+
+    const projection = createProjection(
+      projectionKey,
+      mapSize.width,
+      mapSize.height,
+      projectionRotation,
+      zoomScale
+    );
+
+    const pathGenerator = geoPath(projection);
+
+    // Clear SVG
+    d3Select(svg).selectAll("*").remove();
+
+    const g = d3Select(svg)
+      .attr("width", mapSize.width)
+      .attr("height", mapSize.height)
+      .append("g");
+
+    // Render Milky Way outline
+    const mw = getMilkyWayOutline();
+    g.selectAll(".milkyway")
+      .data([mw])
+      .enter()
+      .append("path")
+      .attr("class", "milkyway")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(200, 150, 100, 0.4)")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "4,4");
+
+    // Render constellation grid
+    const grid = getConstellationGrid();
+    g.selectAll(".constgrid")
+      .data(grid.features)
+      .enter()
+      .append("path")
+      .attr("class", "constgrid")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(100, 150, 200, 0.15)")
+      .attr("stroke-width", 0.8);
+
+    // Render graticule (major lines)
+    const graticule = geoGraticule()
+      .step([30, 30])
+      .extentMajor([
+        [-180, -90],
+        [180, 90]
+      ]);
+    g.append("path")
+      .datum(graticule())
+      .attr("class", "graticule-major")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(148, 163, 184, 0.2)")
+      .attr("stroke-width", 0.6);
+
+    // Render graticule labels
+    const labels = getGraticuleLabelPoints(
+      projection,
+      mapSize.width,
+      mapSize.height
+    );
+    g.selectAll(".graticule-label")
+      .data(labels)
+      .enter()
+      .append("text")
+      .attr("class", "graticule-label")
+      .attr("x", (d) => d.x)
+      .attr("y", (d) => d.y)
+      .attr("text-anchor", (d) => d.anchor)
+      .attr("dominant-baseline", "middle")
+      .attr("font-size", "10px")
+      .attr("fill", "rgba(148, 163, 184, 0.6)")
+      .text((d) => d.text);
+
+    // Render ecliptic plane reference
+    const eclipticCoords: LineString["coordinates"] = [];
+    for (let ra = -180; ra <= 180; ra += 5) {
+      eclipticCoords.push([ra, 0]);
+    }
+    const eclipticLine: Feature<LineString> = {
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: eclipticCoords },
+      properties: {}
+    };
+    g.append("path")
+      .datum(eclipticLine)
+      .attr("class", "ecliptic")
+      .attr("d", pathGenerator)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(255, 200, 100, 0.25)")
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2,3");
+  }, [mapSize, projectionKey, projectionRotation, zoomScale]);
+
   const mapQuery = useQuery<SourceAnalyticsMapData, Error>({
-    queryKey: [
-      "source-analytics-map",
-      selectedCatalogs,
-      dateStart,
-      dateEnd,
-      radiusFilter
-    ],
+    queryKey: ["source-analytics-map", selectedCatalogs],
     queryFn: () =>
       fetchSourceAnalyticsMap({
-        catalogs: selectedCatalogs,
-        discoveryDateStart: dateStart || undefined,
-        discoveryDateEnd: dateEnd || undefined,
-        ra: radiusFilter?.ra,
-        dec: radiusFilter?.dec,
-        radius: radiusFilter?.radius
+        catalogs: selectedCatalogs
       }),
     staleTime: 60 * 1000,
     enabled: selectedCatalogs.length > 0
@@ -279,27 +486,6 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
       return;
     }
 
-    const zoomBehavior = zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([1, 12])
-      .on("zoom", (event: D3ZoomEvent<HTMLCanvasElement, unknown>) => {
-        setZoomTransform(event.transform);
-      });
-
-    const selection = select(canvas);
-    selection.call(zoomBehavior);
-    selection.on("dblclick.zoom", null);
-
-    return () => {
-      selection.on(".zoom", null);
-    };
-  }, [mapSize.width, mapSize.height]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || mapSize.width <= 0 || mapSize.height <= 0) {
-      return;
-    }
-
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(mapSize.width * dpr);
     canvas.height = Math.floor(mapSize.height * dpr);
@@ -311,102 +497,154 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
       return;
     }
 
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    context.clearRect(0, 0, mapSize.width, mapSize.height);
-
-    const projection = createProjection(
-      projectionKey,
-      mapSize.width,
-      mapSize.height
-    );
-    const radiusScale = scaleSqrt()
-      .domain([0, maxSignificance])
-      .range([1.8, 6.4]);
-
-    const plotted: ProjectedPoint[] = [];
-
-    context.save();
-    context.fillStyle = "rgba(15, 23, 42, 0.6)";
-    context.strokeStyle = "rgba(148, 163, 184, 0.35)";
-    context.lineWidth = 1;
-    context.beginPath();
-    context.rect(0, 0, mapSize.width, mapSize.height);
-    context.fill();
-
-    context.beginPath();
-    context.strokeStyle = "rgba(148, 163, 184, 0.25)";
-    const horizontalLines = [-60, -30, 0, 30, 60];
-    for (const lat of horizontalLines) {
-      const first = projection([-180, lat]);
-      const second = projection([180, lat]);
-      if (first && second) {
-        context.moveTo(
-          zoomTransform.applyX(first[0]),
-          zoomTransform.applyY(first[1])
-        );
-        context.lineTo(
-          zoomTransform.applyX(second[0]),
-          zoomTransform.applyY(second[1])
-        );
-      }
+    if (frameRef.current !== null) {
+      window.cancelAnimationFrame(frameRef.current);
     }
-    context.stroke();
 
-    for (const point of visiblePoints) {
-      const coords = toProjectionCoords(point, coordinateSystem);
-      const projected = projection(coords);
-      if (!projected) {
-        continue;
-      }
+    frameRef.current = window.requestAnimationFrame(() => {
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, mapSize.width, mapSize.height);
 
-      const x = zoomTransform.applyX(projected[0]);
-      const y = zoomTransform.applyY(projected[1]);
-      const baseRadius = radiusScale(Math.max(0, point.significance ?? 0));
-      const radius = Math.max(1.2, baseRadius * Math.sqrt(zoomTransform.k));
+      const projection = createProjection(
+        projectionKey,
+        mapSize.width,
+        mapSize.height,
+        projectionRotation,
+        zoomScale
+      );
+      const radiusScale = scaleSqrt()
+        .domain([0, maxSignificance])
+        .range([1.8, 6.4]);
+
+      const plotted: ProjectedPoint[] = [];
+
+      context.save();
+      context.fillStyle = "rgba(15, 23, 42, 0.6)";
+      context.strokeStyle = "rgba(148, 163, 184, 0.35)";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.rect(0, 0, mapSize.width, mapSize.height);
+      context.fill();
 
       context.beginPath();
-      context.fillStyle = SOURCE_CATALOG_META[point.primary_catalog].color;
-      context.globalAlpha = 0.82;
-      context.arc(x, y, radius, 0, Math.PI * 2);
-      context.fill();
-      context.globalAlpha = 1;
-
-      plotted.push({ point, x, y, radius });
-    }
-
-    if (selectedPoint) {
-      const selected = plotted.find(
-        (item) => item.point.id === selectedPoint.id
-      );
-      if (selected) {
-        context.beginPath();
-        context.strokeStyle = "#f8fafc";
-        context.lineWidth = 1.5;
-        context.arc(
-          selected.x,
-          selected.y,
-          selected.radius + 2.5,
-          0,
-          Math.PI * 2
-        );
-        context.stroke();
+      context.strokeStyle = "rgba(148, 163, 184, 0.25)";
+      const horizontalLines = [-60, -30, 0, 30, 60];
+      for (const lat of horizontalLines) {
+        const first = projection([-180, lat]);
+        const second = projection([180, lat]);
+        if (first && second) {
+          context.moveTo(first[0], first[1]);
+          context.lineTo(second[0], second[1]);
+        }
       }
-    }
+      context.stroke();
 
-    projectedPointsRef.current = plotted;
-    context.restore();
+      for (const point of visiblePoints) {
+        const coords = toProjectionCoords(point, coordinateSystem);
+        const projected = projection(coords);
+        if (!projected) {
+          continue;
+        }
+
+        const x = projected[0];
+        const y = projected[1];
+        const baseRadius = radiusScale(Math.max(0, point.significance ?? 0));
+        const radius = Math.max(1.2, baseRadius);
+
+        context.beginPath();
+        context.fillStyle = SOURCE_CATALOG_META[point.primary_catalog].color;
+        context.globalAlpha = 0.82;
+        context.arc(x, y, radius, 0, Math.PI * 2);
+        context.fill();
+        context.globalAlpha = 1;
+
+        plotted.push({ point, x, y, radius });
+      }
+
+      if (selectedPoint) {
+        const selected = plotted.find(
+          (item) => item.point.id === selectedPoint.id
+        );
+        if (selected) {
+          context.beginPath();
+          context.strokeStyle = "#f8fafc";
+          context.lineWidth = 1.5;
+          context.arc(
+            selected.x,
+            selected.y,
+            selected.radius + 2.5,
+            0,
+            Math.PI * 2
+          );
+          context.stroke();
+        }
+      }
+
+      projectedPointsRef.current = plotted;
+      context.restore();
+    });
+
+    return () => {
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
   }, [
     coordinateSystem,
     mapSize.height,
     mapSize.width,
     maxSignificance,
     projectionKey,
+    projectionRotation,
     selectedPoint,
     visiblePoints,
-    zoomTransform
+    zoomScale
   ]);
 
-  const onCanvasMove: MouseEventHandler<HTMLCanvasElement> = (event) => {
+  const updateRotationFromDrag = (x: number, y: number) => {
+    const start = dragStartRef.current;
+    if (!start) {
+      return;
+    }
+
+    const deltaX = x - start.x;
+    const deltaY = y - start.y;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 2) {
+      didDragRef.current = true;
+    }
+
+    const [startLambda, startPhi, startGamma] = dragRotationRef.current;
+    const nextPhi = Math.max(
+      -MAX_LATITUDE_ROTATION,
+      Math.min(MAX_LATITUDE_ROTATION, startPhi - deltaY * ROTATION_SENSITIVITY)
+    );
+
+    setProjectionRotation([
+      startLambda + deltaX * ROTATION_SENSITIVITY,
+      nextPhi,
+      startGamma
+    ]);
+  };
+
+  const onCanvasPointerDown: PointerEventHandler<HTMLCanvasElement> = (
+    event
+  ) => {
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    dragRotationRef.current = projectionRotation;
+    dragPointerIdRef.current = event.pointerId;
+    didDragRef.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onCanvasPointerMove: PointerEventHandler<HTMLCanvasElement> = (
+    event
+  ) => {
+    if (dragPointerIdRef.current === event.pointerId) {
+      updateRotationFromDrag(event.clientX, event.clientY);
+      return;
+    }
+
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -434,16 +672,47 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
     setHoverPosition({ x, y });
   };
 
-  const onCanvasLeave: MouseEventHandler<HTMLCanvasElement> = () => {
+  const onCanvasPointerUp: PointerEventHandler<HTMLCanvasElement> = (event) => {
+    if (dragPointerIdRef.current === event.pointerId) {
+      dragPointerIdRef.current = null;
+      dragStartRef.current = null;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const onCanvasPointerCancel: PointerEventHandler<HTMLCanvasElement> = (
+    event
+  ) => {
+    if (dragPointerIdRef.current === event.pointerId) {
+      dragPointerIdRef.current = null;
+      dragStartRef.current = null;
+      didDragRef.current = false;
+    }
+  };
+
+  const onCanvasLeave: PointerEventHandler<HTMLCanvasElement> = () => {
     setHoveredPoint(null);
   };
 
-  const onCanvasClick: MouseEventHandler<HTMLCanvasElement> = () => {
+  const onCanvasClick: PointerEventHandler<HTMLCanvasElement> = () => {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+
     if (!hoveredPoint) {
       return;
     }
 
     setSelectedPoint(hoveredPoint);
+  };
+
+  const handleZoomIn = () => {
+    setZoomScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_SENSITIVITY));
+  };
+
+  const handleZoomOut = () => {
+    setZoomScale((prev) => Math.max(MIN_ZOOM, prev - ZOOM_SENSITIVITY));
   };
 
   const toggleCatalog = (catalog: CatalogName) => {
@@ -455,41 +724,13 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
   };
 
   const resetView = () => {
-    setZoomTransform(zoomIdentity);
+    setProjectionRotation(DEFAULT_ROTATION);
+    setZoomScale(1);
     setSelectedPoint(null);
     setHoveredPoint(null);
-  };
-
-  const applyRadiusFilter = () => {
-    const ra = parseNumericInput(raInput);
-    const dec = parseNumericInput(decInput);
-    const radius = parseNumericInput(radiusInput);
-
-    if (
-      ra === undefined ||
-      dec === undefined ||
-      radius === undefined ||
-      ra < 0 ||
-      ra > 360 ||
-      dec < -90 ||
-      dec > 90 ||
-      radius <= 0 ||
-      radius > 180
-    ) {
-      setQueryError(t("analytics.map.radiusValidation"));
-      return;
-    }
-
-    setQueryError(null);
-    setRadiusFilter({ ra, dec, radius });
-  };
-
-  const clearRadiusFilter = () => {
-    setRadiusFilter(null);
-    setRaInput("");
-    setDecInput("");
-    setRadiusInput("");
-    setQueryError(null);
+    dragStartRef.current = null;
+    dragPointerIdRef.current = null;
+    didDragRef.current = false;
   };
 
   return (
@@ -499,6 +740,10 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
         <CardDescription>{t("analytics.map.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+          {t("analytics.map.dragToRotate")}
+        </div>
+
         <div className="grid gap-3 lg:grid-cols-4">
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
@@ -551,66 +796,12 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">
-              {t("analytics.map.timeline")}
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                value={dateStart}
-                onChange={(event) => setDateStart(event.target.value)}
-              />
-              <Input
-                type="date"
-                value={dateEnd}
-                onChange={(event) => setDateEnd(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-end justify-end">
+          <div className="flex items-end justify-end lg:col-start-4">
             <Button type="button" variant="outline" onClick={resetView}>
               {t("analytics.map.resetView")}
             </Button>
           </div>
         </div>
-
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <Input
-            type="number"
-            placeholder={t("analytics.map.ra")}
-            value={raInput}
-            onChange={(event) => setRaInput(event.target.value)}
-          />
-          <Input
-            type="number"
-            placeholder={t("analytics.map.dec")}
-            value={decInput}
-            onChange={(event) => setDecInput(event.target.value)}
-          />
-          <Input
-            type="number"
-            placeholder={t("analytics.map.radius")}
-            value={radiusInput}
-            onChange={(event) => setRadiusInput(event.target.value)}
-          />
-          <Button type="button" onClick={applyRadiusFilter}>
-            {t("analytics.map.applyRadius")}
-          </Button>
-          <Button type="button" variant="outline" onClick={clearRadiusFilter}>
-            {t("analytics.map.clearRadius")}
-          </Button>
-          <div className="flex items-center text-xs text-muted-foreground">
-            {radiusFilter
-              ? `${t("analytics.map.radiusActive")}: RA ${formatStat(radiusFilter.ra)} / DEC ${formatStat(radiusFilter.dec)} / r ${formatStat(radiusFilter.radius)}`
-              : t("analytics.map.radiusInactive")}
-          </div>
-        </div>
-
-        {queryError ? (
-          <p className="text-sm text-red-400">{queryError}</p>
-        ) : null}
 
         <div className="flex flex-wrap gap-2">
           {selectedCatalogs.map((catalog) => (
@@ -628,14 +819,23 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
 
         <div
           ref={containerRef}
-          className="relative h-115 w-full overflow-hidden rounded-md border border-white/10 bg-slate-950/80"
+          className="relative h-115 w-full overflow-hidden rounded-md border border-white/10 bg-slate-950/80 touch-none"
         >
           <canvas
             ref={canvasRef}
             className="h-full w-full cursor-crosshair"
-            onMouseMove={onCanvasMove}
+            onPointerDown={onCanvasPointerDown}
+            onPointerMove={onCanvasPointerMove}
+            onPointerUp={onCanvasPointerUp}
+            onPointerCancel={onCanvasPointerCancel}
             onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick}
+          />
+
+          <svg
+            ref={svgRef}
+            className="absolute inset-0 pointer-events-none"
+            style={{ pointerEvents: "none" }}
           />
 
           {hoveredPoint ? (
@@ -679,9 +879,31 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
             ))}
           </div>
 
-          <div className="absolute bottom-3 right-3 rounded border border-white/10 bg-black/55 px-3 py-1 text-xs text-slate-200">
-            {t("analytics.map.points")}: {visiblePoints.length} /{" "}
-            {mapQuery.data?.count ?? 0}
+          <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+            <div className="rounded border border-white/10 bg-black/55 px-3 py-1 text-xs text-slate-200">
+              {t("analytics.map.points")}: {visiblePoints.length} /
+              {mapQuery.data?.count ?? 0}
+            </div>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleZoomOut}
+                disabled={zoomScale <= MIN_ZOOM}
+              >
+                −
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleZoomIn}
+                disabled={zoomScale >= MAX_ZOOM}
+              >
+                +
+              </Button>
+            </div>
           </div>
         </div>
 

@@ -92,7 +92,7 @@ class CombinedPositionError:
         """
         s1 = self.error1.get_sigma()
         s2 = self.error2.get_sigma()
-        return math.sqrt(s1 ** 2 + s2 ** 2)
+        return math.sqrt(s1**2 + s2**2)
 
     def get_match_radius(self, n_sigma: float = 2.5) -> float:
         """
@@ -114,9 +114,7 @@ class ConfidenceCalculator:
     """Calculate match confidence from separation and position errors."""
 
     @staticmethod
-    def gaussian_confidence(
-        separation_deg: float, combined_sigma_deg: float
-    ) -> float:
+    def gaussian_confidence(separation_deg: float, combined_sigma_deg: float) -> float:
         """
         Calculate Gaussian confidence score.
 
@@ -162,9 +160,7 @@ class ConfidenceCalculator:
             Confidence in range [0, 1]
         """
         # Combined effective sigma using semi-major axes
-        combined_sigma = math.sqrt(
-            error1.semi_major_deg ** 2 + error2.semi_major_deg ** 2
-        )
+        combined_sigma = math.sqrt(error1.semi_major_deg**2 + error2.semi_major_deg**2)
 
         # Fall back to Gaussian for now (full Mahalanobis needs coordinate rotation)
         chi_squared = (separation_deg / combined_sigma) ** 2
@@ -208,7 +204,7 @@ def extract_position_error_from_metadata(
         ra_err = metadata.get("pos_err_ra_deg")
         dec_err = metadata.get("pos_err_dec_deg")
         if ra_err and dec_err:
-            combined = math.sqrt(ra_err ** 2 + dec_err ** 2)
+            combined = math.sqrt(ra_err**2 + dec_err**2)
             return CircularPositionError(combined)
 
     return None

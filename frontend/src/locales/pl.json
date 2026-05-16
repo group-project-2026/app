@@ -53,7 +53,8 @@
     "spectralIndex": "Indeks spektralny",
     "confidence": "Pewność",
     "bestConfidence": "Najlepsza pewność",
-    "avgConfidence": "Średnia pewność"
+    "avgConfidence": "Średnia pewność",
+    "viewInAnalytics": "Otwórz w analityce"
   },
   "sources": {
     "title": "Źródła promieniowania gamma",
@@ -134,6 +135,12 @@
     "loadingDescription": "Pobieranie rekordów źródeł z backend API.",
     "errorTitle": "Analityka niedostępna",
     "errorDescription": "Nie udało się załadować danych analityki.",
+    "objectDetail": {
+      "title": "Szczegóły obiektu",
+      "description": "Pełne pomiary wybranego obiektu, w tym indeks spektralny.",
+      "empty": "Wybierz obiekt z mapy uniwersum aby zobaczyć szczegóły.",
+      "backToMap": "← Wróć do mapy uniwersum"
+    },
     "analysisScope": "Zakres analizy",
     "analysisScopeDescription": "Wybierz katalogi i typ porównania dla dashboardu.",
     "groupingsTitle": "Groupingi i agregacje pod analizę",
@@ -183,7 +190,8 @@
     "catalogCoverageDescription": "Porównanie liczby próbek i różnorodności klas między katalogami.",
     "map": {
       "title": "Mapa nieba katalogów",
-      "description": "Interaktywna projekcja nieba z kontrolą projekcji, nakładkami katalogów i filtrem czasu.",
+      "description": "Interaktywna projekcja nieba. Przeciągnij mapę, aby obrócić niebo, a potem doprecyzuj widok przez nakładki katalogów i filtr czasu.",
+      "dragToRotate": "Przeciągnij po niebie, aby obrócić projekcję.",
       "projection": "Projekcja",
       "coordinates": "Układ współrzędnych",
       "equatorial": "Równikowy",
@@ -246,10 +254,27 @@
         "facets": "Facety"
       }
     },
-    "bubbleScore": "Wynik",
-    "bubbleSignificance": "Istotność",
-    "bubbleFlux": "Flux1000",
-    "bubbleConfidence": "Pewność",
+    "emissionTrendTitle": "Trend emisji",
+    "emissionTrendDescription": "Średni i szczytowy flux1000 według katalogów.",
+    "emissionMetrics": {
+      "avgFlux": "Średni flux1000",
+      "peakFlux": "Szczytowy flux1000"
+    },
+    "radarComparisonTitle": "Porównanie radarowe",
+    "radarComparisonDescription": "Wielowymiarowe porównanie katalogów pod względem istotności, strumienia, pewności, łączności i różnorodności klas.",
+    "radarMetrics": {
+      "significance": "Istotność",
+      "flux": "Strumień",
+      "confidence": "Pewność",
+      "connectivity": "Łączność",
+      "classDiversity": "Różnorodność klas"
+    },
+    "sortBy": "Sortuj po",
+    "sortOptions": {
+      "score": "Wynik",
+      "significance": "Istotność",
+      "flux": "Strumień"
+    },
     "topSourcesTitle": "Top źródła",
     "topSourcesDescription": "Najmocniejsze źródła posortowane po łącznym wyniku.",
     "topSourcesColumns": {
@@ -261,6 +286,29 @@
       "confidence": "Pewność",
       "catalogCount": "Liczba katalogów",
       "score": "Wynik"
+    },
+    "sampleCountTitle": "Liczba próbek na katalog",
+    "sampleCountDescription": "Liczba źródeł w każdym katalogu (skala logarytmiczna).",
+    "significanceComparisonTitle": "Porównanie istotności",
+    "significanceComparisonDescription": "Średnia i szczytowa istotność detekcji w katalogach.",
+    "tableColumns": {
+      "peakSignificance": "Szczytowa istotność"
+    },
+    "detectabilityMixTitle": "Miks wykrywalności",
+    "detectabilityMixDescription": "Rozkład poziomów wykrywalności (wysoka/średnia/niska) na katalog.",
+    "detectabilityBands": {
+      "high": "Wysoka (≥70)",
+      "medium": "Średnia (40–70)",
+      "low": "Niska (<40)"
+    },
+    "histogramOverlapTitle": "Histogram istotności (FERMI vs LHAASO)",
+    "histogramOverlapDescription": "Nakładający się histogram ukazujący różnice w rozkładzie istotności między katalogami FERMI i LHAASO.",
+    "radarMultiMetricTitle": "Radar: Porównanie wielowymiarowe",
+    "radarMultiMetricDescription": "Wykres radarowy porównujący indeks istotności, indeks wykrywalności i udział wysokiej wykrywalności w katalogach.",
+    "radarAxes": {
+      "significance": "Indeks Istotności",
+      "detectability": "Indeks Wykrywalności",
+      "highDetectability": "Udział Wysokiej Wykrywalności"
     }
   }
 }

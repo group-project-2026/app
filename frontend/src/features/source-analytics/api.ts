@@ -119,6 +119,86 @@ export interface SourceAnalyticsData {
   }>;
 }
 
+// Backend Analytics Response Types
+export interface BackendCatalogRow {
+  catalog: CatalogName;
+  sampleCount: number;
+  avgEmissionFlux: number;
+  peakEmissionFlux: number;
+  avgSignificance: number;
+  p95Significance: number;
+  peakSignificance: number;
+  avgDetectability: number;
+  highDetectabilityShare: number;
+  low: number;
+  medium: number;
+  high: number;
+}
+
+export interface BackendHeadlineMetrics {
+  samples: number;
+  avgEmissionFlux: number;
+  avgSignificance: number;
+  avgDetectability: number;
+  highDetectabilityShare: number;
+}
+
+export interface BackendSignificanceComparison {
+  catalog: CatalogName;
+  avgSignificance: number;
+  p95Significance: number;
+  peakSignificance: number;
+}
+
+export interface BackendDetectabilityComparison {
+  catalog: CatalogName;
+  low: number;
+  medium: number;
+  high: number;
+  avgDetectability: number;
+}
+
+export interface BackendRadarComparisonRow {
+  catalog: CatalogName;
+  emissionIndex: number;
+  significanceIndex: number;
+  detectabilityIndex: number;
+  highDetectabilityShare: number;
+}
+
+export interface BackendAnalyticsResponse {
+  headlineMetrics: BackendHeadlineMetrics;
+  catalogRows: BackendCatalogRow[];
+  groupingRows: Array<Record<string, unknown>>;
+  emissionTrend: Array<Record<string, unknown>>;
+  emissionComparison: Array<{
+    catalog: CatalogName;
+    avgEmissionFlux: number;
+    peakEmissionFlux: number;
+  }>;
+  significanceComparison: BackendSignificanceComparison[];
+  detectabilityComparison: BackendDetectabilityComparison[];
+  radarComparison: BackendRadarComparisonRow[];
+  significanceHistogram: {
+    edges: number[];
+    perCatalog: Record<
+      string,
+      {
+        bins: Array<{
+          min: number;
+          max: number;
+          label: string;
+          count: number;
+          percentage: number;
+        }>;
+        total: number;
+      }
+    >;
+  };
+  availableCatalogs: CatalogName[];
+  groupBy: string;
+}
+
 function round(value: number, digits = 2): number {
   return Number(value.toFixed(digits));
 }
@@ -533,6 +613,27 @@ export async function fetchSourceAnalytics(
     significanceHistogram,
     radarComparison: buildRadarComparison(catalogComparison)
   };
+}
+
+export async function fetchBackendAnalytics(
+  selectedCatalogs: CatalogName[]
+): Promise<BackendAnalyticsResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    for (const c of selectedCatalogs) {
+      params.append("catalog", c);
+    }
+    const resp = await fetch(`/api/sources/analytics/?${params.toString()}`);
+    if (!resp.ok) {
+      console.error("Failed to fetch backend analytics:", resp.statusText);
+      return null;
+    }
+    const json = await resp.json();
+    return json as BackendAnalyticsResponse;
+  } catch (error) {
+    console.error("Error fetching backend analytics:", error);
+    return null;
+  }
 }
 
 export interface SourceMapPoint {
