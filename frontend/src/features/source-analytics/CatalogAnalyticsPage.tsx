@@ -2,22 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  Radar,
-  RadarChart,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis
-} from "recharts";
+import { usePageTitle } from "@/hooks";
+import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +47,7 @@ import {
   type BackendAnalyticsResponse
 } from "./api";
 import { CatalogSkyMap } from "./CatalogSkyMap";
+import { MagicSedChart } from "./MagicSedChart";
 import type { CosmicPoint } from "@/components/universe-map/types";
 
 const GROUPING_OPTIONS_KEYS: Array<{
@@ -175,6 +162,7 @@ function buildClassMixConfig(
 }
 
 export function CatalogAnalyticsPage() {
+  usePageTitle("pages.analytics");
   const { t } = useTranslation();
   const [selectedCatalogs, setSelectedCatalogs] =
     useState<CatalogName[]>(SOURCE_CATALOGS);
@@ -234,6 +222,14 @@ export function CatalogAnalyticsPage() {
     () => analyticsData?.topClasses ?? [],
     [analyticsData?.topClasses]
   );
+  const magicHeadlineMetrics = analyticsData?.magicHeadlineMetrics ?? {
+    samples: 0,
+    sourcesWithMagic: 0,
+    avgMagicSignificance: 0,
+    detectableShare: 0
+  };
+  const magicComparison = analyticsData?.magicComparison ?? [];
+  const magicTopSources = analyticsData?.magicTopSources ?? [];
 
   const catalogComparisonConfig = useMemo<ChartConfig>(
     () => ({
@@ -262,53 +258,23 @@ export function CatalogAnalyticsPage() {
     }),
     [t]
   );
+  const magicComparisonConfig = useMemo<ChartConfig>(
+    () => ({
+      avgMagicSignificance: {
+        label: t("analytics.magic.chart.avgMagicSignificance"),
+        color: "#D62828"
+      },
+      detectableShare: {
+        label: t("analytics.magic.chart.detectableShare"),
+        color: "#F4A261"
+      }
+    }),
+    [t]
+  );
   const classMixConfig = useMemo(
     () => buildClassMixConfig(topClasses, t),
     [topClasses, t]
   );
-
-  const significanceHistogram = analyticsData?.significanceHistogram;
-
-  const histogramBins = useMemo(() => {
-    if (!significanceHistogram)
-      return [] as Array<{ label: string; edges: [number, number] }>;
-    const edges = significanceHistogram.edges;
-    const bins: Array<{ label: string; edges: [number, number] }> = [];
-    for (let i = 0; i < edges.length - 1; i++) {
-      const lo = edges[i];
-      const hi = edges[i + 1];
-      bins.push({
-        label: `${lo.toExponential(1)}-${hi.toExponential(1)}`,
-        edges: [lo, hi]
-      });
-    }
-    return bins;
-  }, [significanceHistogram]);
-
-  const histogramChartConfig = useMemo<ChartConfig>(() => {
-    const cfg: ChartConfig = {};
-    for (const cat of SOURCE_CATALOGS) {
-      cfg[cat] = {
-        label: SOURCE_CATALOG_META[cat].label,
-        color: SOURCE_CATALOG_META[cat].color
-      };
-    }
-    return cfg;
-  }, []);
-
-  const histogramCombinedData = useMemo(() => {
-    if (!significanceHistogram) return [];
-    const per = significanceHistogram.perCatalog || {};
-    const bins = histogramBins;
-    return bins.map((b, idx) => {
-      const row: Record<string, string | number> = { bin: b.label };
-      for (const cat of SOURCE_CATALOGS) {
-        const catalogEntry = per[cat];
-        row[cat] = catalogEntry?.bins?.[idx]?.count ?? 0;
-      }
-      return row;
-    });
-  }, [significanceHistogram, histogramBins]);
 
   const toggleCatalog = (catalog: CatalogName) => {
     setSelectedCatalogs((previous) => {
@@ -331,65 +297,6 @@ export function CatalogAnalyticsPage() {
 
   const selectedCatalogComparison = catalogComparison.filter((row) =>
     selectedCatalogs.includes(row.catalog)
-  );
-
-  // Prepare radar data
-  const radarData =
-    analyticsData?.radarComparison?.map((row) => ({
-      catalog: SOURCE_CATALOG_META[row.catalog].label,
-      Significance: row.significanceIndex,
-      Flux: row.fluxIndex,
-      Confidence: row.confidenceIndex,
-      Connectivity: row.connectivityIndex,
-      "Class Diversity": row.classDiversityIndex
-    })) ?? [];
-
-  const radarConfig = useMemo<ChartConfig>(
-    () => ({
-      Significance: {
-        label: t("analytics.radarMetrics.significance"),
-        color: "#2A9D8F"
-      },
-      Flux: {
-        label: t("analytics.radarMetrics.flux"),
-        color: "#E76F51"
-      },
-      Confidence: {
-        label: t("analytics.radarMetrics.confidence"),
-        color: "#F9C74F"
-      },
-      Connectivity: {
-        label: t("analytics.radarMetrics.connectivity"),
-        color: "#577590"
-      },
-      "Class Diversity": {
-        label: t("analytics.radarMetrics.classDiversity"),
-        color: "#B06CD5"
-      }
-    }),
-    [t]
-  );
-
-  // Prepare emission trend data (by catalog)
-  const emissionTrendData = selectedCatalogComparison.map((row) => ({
-    catalog: SOURCE_CATALOG_META[row.catalog].label,
-    avgFlux: row.avgFlux1000,
-    peakFlux: row.avgFlux1000 * 1.5, // estimated peak
-    avgSignificance: row.avgSignificance
-  }));
-
-  const emissionTrendConfig = useMemo<ChartConfig>(
-    () => ({
-      avgFlux: {
-        label: t("analytics.emissionMetrics.avgFlux"),
-        color: "#2E86AB"
-      },
-      peakFlux: {
-        label: t("analytics.emissionMetrics.peakFlux"),
-        color: "#A23B72"
-      }
-    }),
-    [t]
   );
 
   return (
@@ -438,68 +345,75 @@ export function CatalogAnalyticsPage() {
             </CardHeader>
             <CardContent>
               {focusedObject ? (
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                  <ObjectDetailField
-                    label={t("sources.columns.sourceName")}
-                    value={focusedObject.name}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.primaryCatalog")}
-                    value={formatCatalogLabel(focusedObject.primaryCatalog)}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.ra")}
-                    value={`${focusedObject.ra.toFixed(4)}°`}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.dec")}
-                    value={`${focusedObject.dec.toFixed(4)}°`}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.sourceClass")}
-                    value={focusedObject.sourceClass ?? "-"}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.significance")}
-                    value={formatFloat(focusedObject.significance ?? undefined, 2)}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.flux1000")}
-                    value={formatFlux(focusedObject.flux1000 ?? undefined)}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.spectralIndex")}
-                    value={formatFloat(
-                      focusedObject.spectralIndex ?? undefined,
-                      3
-                    )}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.avgConfidence")}
-                    value={formatFloat(
-                      focusedObject.avgConfidence ?? undefined,
-                      3
-                    )}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.bestConfidence")}
-                    value={formatFloat(
-                      focusedObject.bestConfidence ?? undefined,
-                      3
-                    )}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.catalogCount")}
-                    value={String(focusedObject.catalogCount)}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.associatedName")}
-                    value={focusedObject.associatedName ?? "-"}
-                  />
-                  <ObjectDetailField
-                    label={t("sources.columns.discoveryMethod")}
-                    value={focusedObject.discoveryMethod ?? "-"}
-                  />
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <ObjectDetailField
+                      label={t("sources.columns.sourceName")}
+                      value={focusedObject.name}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.primaryCatalog")}
+                      value={formatCatalogLabel(focusedObject.primaryCatalog)}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.ra")}
+                      value={`${focusedObject.ra.toFixed(4)}°`}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.dec")}
+                      value={`${focusedObject.dec.toFixed(4)}°`}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.sourceClass")}
+                      value={focusedObject.sourceClass ?? "-"}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.significance")}
+                      value={formatFloat(
+                        focusedObject.significance ?? undefined,
+                        2
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.flux1000")}
+                      value={formatFlux(focusedObject.flux1000 ?? undefined)}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.spectralIndex")}
+                      value={formatFloat(
+                        focusedObject.spectralIndex ?? undefined,
+                        3
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.avgConfidence")}
+                      value={formatFloat(
+                        focusedObject.avgConfidence ?? undefined,
+                        3
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.bestConfidence")}
+                      value={formatFloat(
+                        focusedObject.bestConfidence ?? undefined,
+                        3
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.catalogCount")}
+                      value={String(focusedObject.catalogCount)}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.associatedName")}
+                      value={focusedObject.associatedName ?? "-"}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.discoveryMethod")}
+                      value={focusedObject.discoveryMethod ?? "-"}
+                    />
+                  </div>
+
+                  <MagicSedChart sourceId={focusedObjectId} />
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -706,10 +620,12 @@ export function CatalogAnalyticsPage() {
                   />
                   <Legend />
                   <Bar
+                    name={t("analytics.comparison.scienceScore")}
                     dataKey="scienceScore"
                     fill="var(--color-scienceScore)"
                   />
                   <Bar
+                    name={t("analytics.comparison.multiCatalogShare")}
                     dataKey="multiCatalogShare"
                     fill="var(--color-multiCatalogShare)"
                   />
@@ -747,13 +663,171 @@ export function CatalogAnalyticsPage() {
                     }
                   />
                   <Legend />
-                  <Bar dataKey="sampleCount" fill="var(--color-sampleCount)" />
                   <Bar
+                    name={t("analytics.coverageMetrics.sampleCount")}
+                    dataKey="sampleCount"
+                    fill="var(--color-sampleCount)"
+                  />
+                  <Bar
+                    name={t("analytics.coverageMetrics.classDiversity")}
                     dataKey="classDiversity"
                     fill="var(--color-classDiversity)"
                   />
                 </BarChart>
               </ChartContainer>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.magic.title")}</CardTitle>
+              <CardDescription>
+                {t("analytics.magic.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.samples")}
+                    </CardDescription>
+                    <CardTitle>{magicHeadlineMetrics.samples}</CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.withMagic")}
+                    </CardDescription>
+                    <CardTitle>
+                      {magicHeadlineMetrics.sourcesWithMagic}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.avgSignificance")}
+                    </CardDescription>
+                    <CardTitle>
+                      {formatFloat(
+                        magicHeadlineMetrics.avgMagicSignificance,
+                        2
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.detectableShare")}
+                    </CardDescription>
+                    <CardTitle>
+                      {formatFloat(magicHeadlineMetrics.detectableShare, 1)}%
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
+
+              <ChartContainer config={magicComparisonConfig}>
+                <BarChart data={magicComparison} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="catalog"
+                    tickFormatter={(value) => formatCatalogLabel(String(value))}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tickFormatter={(value) => formatFloat(value, 1)}
+                    width={56}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={[0, 100]}
+                    tickFormatter={(value) => formatFloat(value, 0)}
+                    width={56}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        valueFormatter={(value) => formatFloat(value, 1)}
+                      />
+                    }
+                  />
+                  <Legend />
+                  <Bar
+                    yAxisId="left"
+                    name={t("analytics.magic.chart.avgMagicSignificance")}
+                    dataKey="avgMagicSignificance"
+                    fill="var(--color-avgMagicSignificance)"
+                  />
+                  <Bar
+                    yAxisId="right"
+                    name={t("analytics.magic.chart.detectableShare")}
+                    dataKey="detectableShare"
+                    fill="var(--color-detectableShare)"
+                  />
+                </BarChart>
+              </ChartContainer>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.name")}
+                    </TableHead>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.catalog")}
+                    </TableHead>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.significance")}
+                    </TableHead>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.detectable")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {magicTopSources.map((row) => (
+                    <TableRow key={`${row.catalog}-${row.name}`}>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{formatCatalogLabel(row.catalog)}</TableCell>
+                      <TableCell>
+                        {formatFloat(row.magicSignificance, 2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            row.magicDetectable === null
+                              ? "border-white/10 bg-slate-700/40 text-slate-100"
+                              : row.magicDetectable
+                                ? "border-emerald-400/30 bg-emerald-500/20 text-emerald-50"
+                                : "border-amber-400/30 bg-amber-500/20 text-amber-50"
+                          }
+                        >
+                          {row.magicDetectable === null
+                            ? t("analytics.magic.statusUnavailable")
+                            : row.magicDetectable
+                              ? t("analytics.magic.statusDetectable")
+                              : t("analytics.magic.statusNotDetectable")}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {magicTopSources.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-muted-foreground">
+                        {t("analytics.magic.noMagicData")}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </section>
@@ -806,175 +880,6 @@ export function CatalogAnalyticsPage() {
                   </Badge>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between w-full">
-                <div>
-                  <CardTitle>
-                    {t("analytics.significanceHistogramTitle")}
-                  </CardTitle>
-                  <CardDescription>
-                    {t("analytics.significanceHistogramDescription")}
-                  </CardDescription>
-                </div>
-                {/* Facets mode removed — showing overlap histogram only */}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={histogramChartConfig}>
-                <BarChart
-                  data={histogramCombinedData}
-                  margin={{ left: 8, right: 8 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="bin" tick={{ fontSize: 11 }} />
-                  <YAxis width={56} />
-                  <Tooltip
-                    formatter={(value, name) => [String(value), String(name)]}
-                  />
-                  <Legend />
-                  {selectedCatalogs.map((cat) => (
-                    <Bar
-                      key={cat}
-                      dataKey={cat}
-                      fill={`var(--color-${cat})`}
-                      fillOpacity={0.6}
-                    />
-                  ))}
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("analytics.emissionTrendTitle")}</CardTitle>
-              <CardDescription>
-                {t("analytics.emissionTrendDescription")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={emissionTrendConfig}>
-                <LineChart
-                  data={emissionTrendData}
-                  margin={{ left: 8, right: 8 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="catalog"
-                    tickFormatter={(value) => formatCatalogLabel(String(value))}
-                  />
-                  <YAxis
-                    tickFormatter={(value) => formatFloat(value, 3)}
-                    width={56}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        valueFormatter={(value) => formatFloat(value, 3)}
-                      />
-                    }
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="avgFlux"
-                    stroke="var(--color-avgFlux)"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="peakFlux"
-                    stroke="var(--color-peakFlux)"
-                    strokeWidth={2}
-                    strokeDasharray="5,5"
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("analytics.radarComparisonTitle")}</CardTitle>
-              <CardDescription>
-                {t("analytics.radarComparisonDescription")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={radarConfig}>
-                <RadarChart
-                  data={radarData}
-                  margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                >
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="catalog" tick={{ fontSize: 11 }} />
-                  <PolarRadiusAxis
-                    angle={90}
-                    domain={[0, 100]}
-                    tickFormatter={(value) => formatFloat(value, 0)}
-                  />
-                  <Radar
-                    name={radarConfig.Significance.label}
-                    dataKey="Significance"
-                    stroke="var(--color-Significance)"
-                    fill="var(--color-Significance)"
-                    fillOpacity={0.15}
-                  />
-                  <Radar
-                    name={radarConfig.Flux.label}
-                    dataKey="Flux"
-                    stroke="var(--color-Flux)"
-                    fill="var(--color-Flux)"
-                    fillOpacity={0.15}
-                  />
-                  <Radar
-                    name={radarConfig.Confidence.label}
-                    dataKey="Confidence"
-                    stroke="var(--color-Confidence)"
-                    fill="var(--color-Confidence)"
-                    fillOpacity={0.15}
-                  />
-                  <Radar
-                    name={radarConfig.Connectivity.label}
-                    dataKey="Connectivity"
-                    stroke="var(--color-Connectivity)"
-                    fill="var(--color-Connectivity)"
-                    fillOpacity={0.15}
-                  />
-                  <Radar
-                    name={radarConfig["Class Diversity"].label}
-                    dataKey="Class Diversity"
-                    stroke="var(--color-Class Diversity)"
-                    fill="var(--color-Class Diversity)"
-                    fillOpacity={0.15}
-                  />
-                  <Legend />
-                  <Tooltip
-                    formatter={(value) => {
-                      if (
-                        typeof value === "number" ||
-                        typeof value === "string"
-                      ) {
-                        return formatFloat(value, 1);
-                      }
-
-                      return "-";
-                    }}
-                  />
-                </RadarChart>
-              </ChartContainer>
             </CardContent>
           </Card>
         </section>
@@ -1129,10 +1034,12 @@ export function CatalogAnalyticsPage() {
                       />
                       <Legend />
                       <Bar
+                        name={t("analytics.tableColumns.avgSigma")}
                         dataKey="avgSignificance"
                         fill="var(--color-avgSignificance)"
                       />
                       <Bar
+                        name={t("analytics.tableColumns.peakSignificance")}
                         dataKey="peakSignificance"
                         fill="var(--color-peakSignificance)"
                       />
@@ -1207,168 +1114,6 @@ export function CatalogAnalyticsPage() {
                 </CardContent>
               </Card>
             </section>
-
-            {backendAnalyticsQuery.data.significanceHistogram && (
-              <section className="gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      {t("analytics.histogramOverlapTitle")}
-                    </CardTitle>
-                    <CardDescription>
-                      {t("analytics.histogramOverlapDescription")}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer
-                      config={{
-                        FERMI: {
-                          label: SOURCE_CATALOG_META.FERMI.label,
-                          color: SOURCE_CATALOG_META.FERMI.color
-                        },
-                        LHAASO: {
-                          label: SOURCE_CATALOG_META.LHAASO.label,
-                          color: SOURCE_CATALOG_META.LHAASO.color
-                        }
-                      }}
-                    >
-                      <BarChart
-                        data={(() => {
-                          const edges =
-                            backendAnalyticsQuery.data.significanceHistogram
-                              ?.edges ?? [];
-                          const perCatalog =
-                            backendAnalyticsQuery.data.significanceHistogram
-                              ?.perCatalog ?? {};
-                          const bins = [];
-                          for (let i = 0; i < edges.length - 1; i++) {
-                            const lo = edges[i];
-                            const hi = edges[i + 1];
-                            const row: Record<string, string | number> = {
-                              bin: `${lo.toExponential(1)}-${hi.toExponential(1)}`
-                            };
-                            const fermi = perCatalog.FERMI?.bins?.[i];
-                            const lhaaso = perCatalog.LHAASO?.bins?.[i];
-                            row.FERMI = fermi?.count ?? 0;
-                            row.LHAASO = lhaaso?.count ?? 0;
-                            bins.push(row);
-                          }
-                          return bins;
-                        })()}
-                        margin={{ left: 8, right: 8 }}
-                      >
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="bin" tick={{ fontSize: 10 }} />
-                        <YAxis width={56} />
-                        <ChartTooltip
-                          content={
-                            <ChartTooltipContent
-                              valueFormatter={(value) => String(value)}
-                            />
-                          }
-                        />
-                        <Legend />
-                        <Bar
-                          dataKey="FERMI"
-                          fill="var(--color-FERMI)"
-                          fillOpacity={0.7}
-                        />
-                        <Bar
-                          dataKey="LHAASO"
-                          fill="var(--color-LHAASO)"
-                          fillOpacity={0.7}
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-              </section>
-            )}
-
-            <section className="gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t("analytics.radarMultiMetricTitle")}</CardTitle>
-                  <CardDescription>
-                    {t("analytics.radarMultiMetricDescription")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={{
-                      Significance: {
-                        label: t("analytics.radarAxes.significance"),
-                        color: "#2A9D8F"
-                      },
-                      Detectability: {
-                        label: t("analytics.radarAxes.detectability"),
-                        color: "#E76F51"
-                      },
-                      HighDetectability: {
-                        label: t("analytics.radarAxes.highDetectability"),
-                        color: "#F9C74F"
-                      }
-                    }}
-                  >
-                    <RadarChart
-                      data={backendAnalyticsQuery.data.radarComparison.map(
-                        (row) => ({
-                          catalog: SOURCE_CATALOG_META[row.catalog]?.label,
-                          Significance: row.significanceIndex,
-                          Detectability: row.detectabilityIndex,
-                          HighDetectability: row.highDetectabilityShare
-                        })
-                      )}
-                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                    >
-                      <PolarGrid />
-                      <PolarAngleAxis
-                        dataKey="catalog"
-                        tick={{ fontSize: 11 }}
-                      />
-                      <PolarRadiusAxis
-                        angle={90}
-                        domain={[0, 100]}
-                        tickFormatter={(value) => formatFloat(value, 0)}
-                      />
-                      <Radar
-                        name="Significance"
-                        dataKey="Significance"
-                        stroke="var(--color-Significance)"
-                        fill="var(--color-Significance)"
-                        fillOpacity={0.2}
-                      />
-                      <Radar
-                        name="Detectability"
-                        dataKey="Detectability"
-                        stroke="var(--color-Detectability)"
-                        fill="var(--color-Detectability)"
-                        fillOpacity={0.2}
-                      />
-                      <Radar
-                        name="HighDetectability"
-                        dataKey="HighDetectability"
-                        stroke="var(--color-HighDetectability)"
-                        fill="var(--color-HighDetectability)"
-                        fillOpacity={0.2}
-                      />
-                      <Legend />
-                      <Tooltip
-                        formatter={(value) => {
-                          if (
-                            typeof value === "number" ||
-                            typeof value === "string"
-                          ) {
-                            return formatFloat(value, 1);
-                          }
-                          return "-";
-                        }}
-                      />
-                    </RadarChart>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </section>
           </>
         )}
       </div>
@@ -1376,13 +1121,7 @@ export function CatalogAnalyticsPage() {
   );
 }
 
-function ObjectDetailField({
-  label,
-  value
-}: {
-  label: string;
-  value: string;
-}) {
+function ObjectDetailField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-white/10 bg-slate-900/40 p-3">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
