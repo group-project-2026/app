@@ -327,7 +327,7 @@ To maintain interactive frame rates over the full source set ($\sim$\,7000 objec
 The sky is subdivided into $N_{\text{side}} = 2^{\text{order}}$ HEALPix pixels in the NESTED indexing scheme; the \texttt{ang2pix} transformation maps a source's angular position $(\alpha, \delta)$ to its pixel index using two branches — an equatorial branch for $|z| = |\sin\delta| \le 2/3$ and a polar branch for $|z| > 2/3$ — mirroring the original Górski et al. algorithm \citep{Gorski2005}.
 At coarser zoom levels, nearby sources are merged into cluster markers (\texttt{ClusterMarkers}) with a count badge; as the camera approaches a region the hierarchy is refined, revealing individual source points.
 
-\begin{figure}[h]
+\begin{figure}[h!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/placeholder_skymap.png}
     \caption{2D sky map in Galactic Aitoff projection (left) showing all ingested sources colour-coded by catalog, with significance-scaled point radii. The 3D celestial sphere view (right) shows hierarchical clustering at an intermediate zoom level.}
@@ -337,6 +337,7 @@ At coarser zoom levels, nearby sources are merged into cluster markers (\texttt{
 The two skymap views share the same underlying source data fetched via a dedicated API module that pages through the \texttt{/api/sources/} endpoint (up to $100 \times 200 = 20\,000$ items) and caches the result in the React Query store.
 Future work could replace the paged fetch with a dedicated bulk-export endpoint returning compressed GeoJSON or HEALPix-indexed tiles to reduce initial load time for large catalog releases.
 
+\clearpage
 \begin{thebibliography}{99}
 \bibitem[Abdollahi et al.(2020)]{2020ApJS..247...33A} Abdollahi, S., Acero, F., Ackermann, M., et al.\ 2020, ApJS, 247, 1, 33. doi:10.3847/1538-4365/ab6bcb
 \bibitem[Li \& Ma(1983)]{LiMa1983} Li, T.-P., \& Ma, Y.-Q.\ 1983, ApJ, 272, 317. doi:10.1086/161295
