@@ -36,24 +36,33 @@ interface Props {
   points: CosmicPointType[];
   onSelect: (point: CosmicPointType) => void;
 }
-export function CosmicPoints({ points, onSelect }: Props) {
-  // Simplified DOM-only rendering for Jest tests (jsdom can't run WebGL).
+
+export function CosmicPoints(props: Props) {
   if (process.env.NODE_ENV === "test") {
-    if (points.length === 0) return null;
-    return React.createElement(
-      React.Fragment,
-      null,
-      React.createElement("instancedmesh", { raycast: true }),
-      React.createElement("instancedmesh", {
-        onPointerOver: () => {},
-        onPointerOut: () => {},
-        onClick: () => {
-          const idx = 1;
-          if (onSelect) onSelect(points[idx]);
-        }
-      })
-    );
+    return <CosmicPointsTestStub {...props} />;
   }
+  return <CosmicPointsImpl {...props} />;
+}
+
+// Simplified DOM-only rendering for Jest tests (jsdom can't run WebGL).
+function CosmicPointsTestStub({ points, onSelect }: Props) {
+  if (points.length === 0) return null;
+  return React.createElement(
+    React.Fragment,
+    null,
+    React.createElement("instancedmesh", { raycast: true }),
+    React.createElement("instancedmesh", {
+      onPointerOver: () => {},
+      onPointerOut: () => {},
+      onClick: () => {
+        const idx = 1;
+        if (onSelect) onSelect(points[idx]);
+      }
+    })
+  );
+}
+
+function CosmicPointsImpl({ points, onSelect }: Props) {
   const coreRef = useRef<THREE.InstancedMesh>(null);
   const glowRef = useRef<THREE.InstancedMesh>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
