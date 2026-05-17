@@ -49,7 +49,8 @@
     "spectralIndex": "Spectral index",
     "confidence": "Confidence",
     "bestConfidence": "Best confidence",
-    "avgConfidence": "Average confidence"
+    "avgConfidence": "Average confidence",
+    "viewInAnalytics": "Open in analytics"
   },
   "sources": {
     "title": "Gamma-Ray Sources",
@@ -130,6 +131,12 @@
     "loadingDescription": "Fetching source records from backend API.",
     "errorTitle": "Analytics unavailable",
     "errorDescription": "Failed to load analytics data.",
+    "objectDetail": {
+      "title": "Object details",
+      "description": "Full measurements for the selected object, including spectral index.",
+      "empty": "Pick an object on the universe map to see its details.",
+      "backToMap": "← Back to universe map"
+    },
     "analysisScope": "Analysis Scope",
     "analysisScopeDescription": "Select catalogs and comparison lens for the dashboard.",
     "groupingsTitle": "Groupings and Aggregations for Analysis",
@@ -159,7 +166,8 @@
       "avgSigma": "Avg significance",
       "avgConfidence": "Avg confidence",
       "avgCatalogCount": "Avg catalog count",
-      "multiCatalogPercent": "Multi-catalog %"
+      "multiCatalogPercent": "Multi-catalog %",
+      "peakSignificance": "Peak significance"
     },
     "metrics": {
       "samples": "Samples",
@@ -173,13 +181,92 @@
       "scienceScore": "Science score",
       "multiCatalogShare": "Multi-catalog share"
     },
+    "magic": {
+      "title": "MAGIC summary",
+      "description": "Pre-calculated MAGIC detectability and significance derived from catalog ingestion.",
+      "metrics": {
+        "samples": "Sources",
+        "withMagic": "With MAGIC data",
+        "avgSignificance": "Average MAGIC sigma",
+        "detectableShare": "Detectable share"
+      },
+      "chart": {
+        "avgMagicSignificance": "Average MAGIC significance",
+        "detectableShare": "Detectable share"
+      },
+      "tableColumns": {
+        "name": "Source",
+        "catalog": "Catalog",
+        "significance": "MAGIC sigma",
+        "detectable": "Detectability"
+      },
+      "detailTitle": "MAGIC details",
+      "detailDescription": "MAGIC fields from the primary catalog entry used during ingestion.",
+      "statusDetectable": "Detectable",
+      "statusNotDetectable": "Not detectable",
+      "statusUnavailable": "MAGIC unavailable",
+      "booleanYes": "Yes",
+      "booleanNo": "No",
+      "loadingMagicDetail": "Loading MAGIC metadata…",
+      "noMagicData": "No MAGIC data available for the current catalog selection.",
+      "fields": {
+        "significance": "MAGIC significance",
+        "detectable": "MAGIC detectable",
+        "calculatedAt": "Calculated at",
+        "paramsHash": "Params hash"
+      },
+      "simulation": {
+        "title": "MAGIC simulation",
+        "description": "On-demand spectral bins returned by /api/sources/{id}/magic_simulation/.",
+        "loading": "Loading MAGIC simulation…",
+        "error": "Failed to load MAGIC simulation.",
+        "noSpectralPoints": "No spectral points were returned for this source.",
+        "preCalculatedOnly": "This source returned pre-calculated MAGIC data instead of spectral bins.",
+        "metrics": {
+          "totalSignificance": "Total significance",
+          "minObservationTime": "Min. observation time (h)",
+          "signalToBackground": "Signal / background",
+          "totalSignalEvents": "Signal events",
+          "detectedBins": "Detected bins",
+          "observationTime": "Observation time",
+          "detectionProbability": "Detection probability"
+        },
+        "flux": "Flux",
+        "sed": {
+          "detectedSeries": "Detected points",
+          "upperLimitSeries": "Upper limits",
+          "xAxis": "Energy [GeV]",
+          "yAxis": "E² · dF/dE [TeV cm⁻² s⁻¹]",
+          "fluxLow": "Flux (low)",
+          "fluxHigh": "Flux (high)"
+        },
+        "preCalculated": {
+          "significance": "Pre-calculated sigma",
+          "detectable": "Pre-calculated detectability",
+          "calculatedAt": "Calculated at",
+          "note": "Observation note"
+        },
+        "parameters": {
+          "observationTime": "Observation time (h)",
+          "zenithAngle": "Zenith angle",
+          "psf": "PSF (deg)",
+          "extension": "Extension (deg)",
+          "offset": "Offset (deg)",
+          "offRegions": "Off regions",
+          "minEvents": "Min. events",
+          "minSbr": "Min. S/B (%)",
+          "pulsarMode": "Pulsar mode"
+        }
+      }
+    },
     "catalogComparison": "Catalog comparison",
     "catalogComparisonDescription": "Compare catalogs by composite science score and multi-catalog overlap.",
     "catalogCoverage": "Catalog coverage",
     "catalogCoverageDescription": "Compare sample volume and class diversity across catalogs.",
     "map": {
       "title": "Catalog sky map",
-      "description": "Interactive sky projection with projection controls, catalog overlays, and timeline filtering.",
+      "description": "Interactive sky projection. Drag the map to rotate the sky, then refine with catalog overlays and timeline filtering.",
+      "dragToRotate": "Drag across the sky to rotate the projection.",
       "projection": "Projection",
       "coordinates": "Coordinate system",
       "equatorial": "Equatorial",
@@ -219,7 +306,12 @@
       "fluxIndex": "Flux index",
       "confidenceIndex": "Confidence index",
       "connectivityIndex": "Connectivity index",
-      "classDiversityIndex": "Class diversity index"
+      "classDiversityIndex": "Class diversity index",
+      "significance": "Significance",
+      "flux": "Flux",
+      "confidence": "Confidence",
+      "connectivity": "Connectivity",
+      "classDiversity": "Class diversity"
     },
     "classMixTitle": "Source class mix",
     "classMixDescription": "Top source classes stacked by catalog.",
@@ -246,6 +338,20 @@
     "bubbleSignificance": "Significance",
     "bubbleFlux": "Flux1000",
     "bubbleConfidence": "Confidence",
+    "emissionTrendTitle": "Emission trend",
+    "emissionTrendDescription": "Average and peak flux1000 by catalog.",
+    "emissionMetrics": {
+      "avgFlux": "Average flux1000",
+      "peakFlux": "Peak flux1000"
+    },
+    "radarComparisonTitle": "Radar comparison",
+    "radarComparisonDescription": "Multi-dimensional comparison of catalogs across significance, flux, confidence, connectivity, and class diversity.",
+    "sortBy": "Sort by",
+    "sortOptions": {
+      "score": "Score",
+      "significance": "Significance",
+      "flux": "Flux"
+    },
     "topSourcesTitle": "Top sources",
     "topSourcesDescription": "Most extreme sources ranked by combined score.",
     "topSourcesColumns": {
@@ -257,6 +363,36 @@
       "confidence": "Confidence",
       "catalogCount": "Catalog count",
       "score": "Score"
+    },
+    "sampleCountTitle": "Sample count per catalog",
+    "sampleCountDescription": "Number of sources in each catalog (logarithmic scale).",
+    "significanceComparisonTitle": "Significance comparison",
+    "significanceComparisonDescription": "Average and peak detection significance across catalogs.",
+    "detectabilityMixTitle": "Detectability mix",
+    "detectabilityMixDescription": "Distribution of detectability levels (high/medium/low) per catalog.",
+    "detectabilityBands": {
+      "high": "High (≥70)",
+      "medium": "Medium (40–70)",
+      "low": "Low (<40)"
+    },
+    "histogramOverlapTitle": "Significance histogram (FERMI vs LHAASO)",
+    "histogramOverlapDescription": "Overlapping histogram showing significance distribution differences between FERMI and LHAASO catalogs.",
+    "radarMultiMetricTitle": "Radar: Multi-metric comparison",
+    "radarMultiMetricDescription": "Radar chart comparing significance index, detectability index, and high detectability share across catalogs.",
+    "radarAxes": {
+      "significance": "Significance Index",
+      "detectability": "Detectability Index",
+      "highDetectability": "High Detectability Share"
     }
+  },
+  "app": {
+    "name": "Gamma-Ray Observatory"
+  },
+  "pages": {
+    "home": "Home",
+    "universeMap": "Universe Map",
+    "sources": "Sources",
+    "sourceDetail": "Source Details",
+    "analytics": "Catalog Analytics"
   }
 }

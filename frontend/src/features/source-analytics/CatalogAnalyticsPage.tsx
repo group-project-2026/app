@@ -1,15 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  XAxis,
-  YAxis,
-  Tooltip
-} from "recharts";
+import { usePageTitle } from "@/hooks";
+import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,12 +39,16 @@ import type { CatalogName } from "../sources/types";
 import {
   buildAnalyticsGroupRows,
   fetchSourceAnalytics,
+  fetchBackendAnalytics,
   SOURCE_CATALOGS,
   SOURCE_CATALOG_META,
   type GroupByDimension,
-  type SourceAnalyticsData
+  type SourceAnalyticsData,
+  type BackendAnalyticsResponse
 } from "./api";
 import { CatalogSkyMap } from "./CatalogSkyMap";
+import { MagicSedChart } from "./MagicSedChart";
+import type { CosmicPoint } from "@/components/universe-map/types";
 
 const GROUPING_OPTIONS_KEYS: Array<{
   value: GroupByDimension;
@@ -164,16 +162,41 @@ function buildClassMixConfig(
 }
 
 export function CatalogAnalyticsPage() {
+  usePageTitle("pages.analytics");
   const { t } = useTranslation();
   const [selectedCatalogs, setSelectedCatalogs] =
     useState<CatalogName[]>(SOURCE_CATALOGS);
   const [groupBy, setGroupBy] = useState<GroupByDimension>("catalog");
+
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const focusedObjectId = searchParams.get("id");
+  const focusedObject =
+    (location.state as { point?: CosmicPoint } | null)?.point ?? null;
+
+  useEffect(() => {
+    if (!focusedObjectId) return;
+    const el = document.getElementById("object-detail");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusedObjectId]);
 
   const analyticsQuery = useQuery<SourceAnalyticsData, Error>({
     queryKey: ["source-analytics", selectedCatalogs],
     queryFn: () => fetchSourceAnalytics(selectedCatalogs),
     staleTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData
+  });
+
+  const backendAnalyticsQuery = useQuery<
+    BackendAnalyticsResponse | null,
+    Error
+  >({
+    queryKey: ["backend-analytics", selectedCatalogs],
+    queryFn: () => fetchBackendAnalytics(selectedCatalogs),
+    staleTime: 5 * 60 * 1000,
+    retry: false
   });
 
   const analyticsData = analyticsQuery.data;
@@ -199,6 +222,14 @@ export function CatalogAnalyticsPage() {
     () => analyticsData?.topClasses ?? [],
     [analyticsData?.topClasses]
   );
+  const magicHeadlineMetrics = analyticsData?.magicHeadlineMetrics ?? {
+    samples: 0,
+    sourcesWithMagic: 0,
+    avgMagicSignificance: 0,
+    detectableShare: 0
+  };
+  const magicComparison = analyticsData?.magicComparison ?? [];
+  const magicTopSources = analyticsData?.magicTopSources ?? [];
 
   const catalogComparisonConfig = useMemo<ChartConfig>(
     () => ({
@@ -227,53 +258,23 @@ export function CatalogAnalyticsPage() {
     }),
     [t]
   );
+  const magicComparisonConfig = useMemo<ChartConfig>(
+    () => ({
+      avgMagicSignificance: {
+        label: t("analytics.magic.chart.avgMagicSignificance"),
+        color: "#D62828"
+      },
+      detectableShare: {
+        label: t("analytics.magic.chart.detectableShare"),
+        color: "#F4A261"
+      }
+    }),
+    [t]
+  );
   const classMixConfig = useMemo(
     () => buildClassMixConfig(topClasses, t),
     [topClasses, t]
   );
-
-  const significanceHistogram = analyticsData?.significanceHistogram;
-
-  const histogramBins = useMemo(() => {
-    if (!significanceHistogram)
-      return [] as Array<{ label: string; edges: [number, number] }>;
-    const edges = significanceHistogram.edges;
-    const bins: Array<{ label: string; edges: [number, number] }> = [];
-    for (let i = 0; i < edges.length - 1; i++) {
-      const lo = edges[i];
-      const hi = edges[i + 1];
-      bins.push({
-        label: `${lo.toExponential(1)}-${hi.toExponential(1)}`,
-        edges: [lo, hi]
-      });
-    }
-    return bins;
-  }, [significanceHistogram]);
-
-  const histogramChartConfig = useMemo<ChartConfig>(() => {
-    const cfg: ChartConfig = {};
-    for (const cat of SOURCE_CATALOGS) {
-      cfg[cat] = {
-        label: SOURCE_CATALOG_META[cat].label,
-        color: SOURCE_CATALOG_META[cat].color
-      };
-    }
-    return cfg;
-  }, []);
-
-  const histogramCombinedData = useMemo(() => {
-    if (!significanceHistogram) return [];
-    const per = significanceHistogram.perCatalog || {};
-    const bins = histogramBins;
-    return bins.map((b, idx) => {
-      const row: Record<string, string | number> = { bin: b.label };
-      for (const cat of SOURCE_CATALOGS) {
-        const catalogEntry = per[cat];
-        row[cat] = catalogEntry?.bins?.[idx]?.count ?? 0;
-      }
-      return row;
-    });
-  }, [significanceHistogram, histogramBins]);
 
   const toggleCatalog = (catalog: CatalogName) => {
     setSelectedCatalogs((previous) => {
@@ -333,6 +334,95 @@ export function CatalogAnalyticsPage() {
             </CardHeader>
           </Card>
         ) : null}
+
+        {focusedObjectId && (
+          <Card id="object-detail">
+            <CardHeader>
+              <CardTitle>{t("analytics.objectDetail.title")}</CardTitle>
+              <CardDescription>
+                {t("analytics.objectDetail.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {focusedObject ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <ObjectDetailField
+                      label={t("sources.columns.sourceName")}
+                      value={focusedObject.name}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.primaryCatalog")}
+                      value={formatCatalogLabel(focusedObject.primaryCatalog)}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.ra")}
+                      value={`${focusedObject.ra.toFixed(4)}°`}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.dec")}
+                      value={`${focusedObject.dec.toFixed(4)}°`}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.sourceClass")}
+                      value={focusedObject.sourceClass ?? "-"}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.significance")}
+                      value={formatFloat(
+                        focusedObject.significance ?? undefined,
+                        2
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.flux1000")}
+                      value={formatFlux(focusedObject.flux1000 ?? undefined)}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.spectralIndex")}
+                      value={formatFloat(
+                        focusedObject.spectralIndex ?? undefined,
+                        3
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.avgConfidence")}
+                      value={formatFloat(
+                        focusedObject.avgConfidence ?? undefined,
+                        3
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.bestConfidence")}
+                      value={formatFloat(
+                        focusedObject.bestConfidence ?? undefined,
+                        3
+                      )}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.catalogCount")}
+                      value={String(focusedObject.catalogCount)}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.associatedName")}
+                      value={focusedObject.associatedName ?? "-"}
+                    />
+                    <ObjectDetailField
+                      label={t("sources.columns.discoveryMethod")}
+                      value={focusedObject.discoveryMethod ?? "-"}
+                    />
+                  </div>
+
+                  <MagicSedChart sourceId={focusedObjectId} />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("analytics.objectDetail.empty")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid gap-6">
           <CatalogSkyMap selectedCatalogs={selectedCatalogs} />
@@ -530,10 +620,12 @@ export function CatalogAnalyticsPage() {
                   />
                   <Legend />
                   <Bar
+                    name={t("analytics.comparison.scienceScore")}
                     dataKey="scienceScore"
                     fill="var(--color-scienceScore)"
                   />
                   <Bar
+                    name={t("analytics.comparison.multiCatalogShare")}
                     dataKey="multiCatalogShare"
                     fill="var(--color-multiCatalogShare)"
                   />
@@ -571,13 +663,171 @@ export function CatalogAnalyticsPage() {
                     }
                   />
                   <Legend />
-                  <Bar dataKey="sampleCount" fill="var(--color-sampleCount)" />
                   <Bar
+                    name={t("analytics.coverageMetrics.sampleCount")}
+                    dataKey="sampleCount"
+                    fill="var(--color-sampleCount)"
+                  />
+                  <Bar
+                    name={t("analytics.coverageMetrics.classDiversity")}
                     dataKey="classDiversity"
                     fill="var(--color-classDiversity)"
                   />
                 </BarChart>
               </ChartContainer>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("analytics.magic.title")}</CardTitle>
+              <CardDescription>
+                {t("analytics.magic.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.samples")}
+                    </CardDescription>
+                    <CardTitle>{magicHeadlineMetrics.samples}</CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.withMagic")}
+                    </CardDescription>
+                    <CardTitle>
+                      {magicHeadlineMetrics.sourcesWithMagic}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.avgSignificance")}
+                    </CardDescription>
+                    <CardTitle>
+                      {formatFloat(
+                        magicHeadlineMetrics.avgMagicSignificance,
+                        2
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card size="sm">
+                  <CardHeader>
+                    <CardDescription>
+                      {t("analytics.magic.metrics.detectableShare")}
+                    </CardDescription>
+                    <CardTitle>
+                      {formatFloat(magicHeadlineMetrics.detectableShare, 1)}%
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
+
+              <ChartContainer config={magicComparisonConfig}>
+                <BarChart data={magicComparison} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="catalog"
+                    tickFormatter={(value) => formatCatalogLabel(String(value))}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tickFormatter={(value) => formatFloat(value, 1)}
+                    width={56}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={[0, 100]}
+                    tickFormatter={(value) => formatFloat(value, 0)}
+                    width={56}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        valueFormatter={(value) => formatFloat(value, 1)}
+                      />
+                    }
+                  />
+                  <Legend />
+                  <Bar
+                    yAxisId="left"
+                    name={t("analytics.magic.chart.avgMagicSignificance")}
+                    dataKey="avgMagicSignificance"
+                    fill="var(--color-avgMagicSignificance)"
+                  />
+                  <Bar
+                    yAxisId="right"
+                    name={t("analytics.magic.chart.detectableShare")}
+                    dataKey="detectableShare"
+                    fill="var(--color-detectableShare)"
+                  />
+                </BarChart>
+              </ChartContainer>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.name")}
+                    </TableHead>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.catalog")}
+                    </TableHead>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.significance")}
+                    </TableHead>
+                    <TableHead>
+                      {t("analytics.magic.tableColumns.detectable")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {magicTopSources.map((row) => (
+                    <TableRow key={`${row.catalog}-${row.name}`}>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{formatCatalogLabel(row.catalog)}</TableCell>
+                      <TableCell>
+                        {formatFloat(row.magicSignificance, 2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            row.magicDetectable === null
+                              ? "border-white/10 bg-slate-700/40 text-slate-100"
+                              : row.magicDetectable
+                                ? "border-emerald-400/30 bg-emerald-500/20 text-emerald-50"
+                                : "border-amber-400/30 bg-amber-500/20 text-amber-50"
+                          }
+                        >
+                          {row.magicDetectable === null
+                            ? t("analytics.magic.statusUnavailable")
+                            : row.magicDetectable
+                              ? t("analytics.magic.statusDetectable")
+                              : t("analytics.magic.statusNotDetectable")}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {magicTopSources.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-muted-foreground">
+                        {t("analytics.magic.noMagicData")}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </section>
@@ -634,48 +884,6 @@ export function CatalogAnalyticsPage() {
           </Card>
         </section>
 
-        <section className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between w-full">
-                <div>
-                  <CardTitle>
-                    {t("analytics.significanceHistogramTitle")}
-                  </CardTitle>
-                  <CardDescription>
-                    {t("analytics.significanceHistogramDescription")}
-                  </CardDescription>
-                </div>
-                {/* Facets mode removed — showing overlap histogram only */}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={histogramChartConfig}>
-                <BarChart
-                  data={histogramCombinedData}
-                  margin={{ left: 8, right: 8 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="bin" tick={{ fontSize: 11 }} />
-                  <YAxis width={56} />
-                  <Tooltip
-                    formatter={(value, name) => [String(value), String(name)]}
-                  />
-                  <Legend />
-                  {selectedCatalogs.map((cat) => (
-                    <Bar
-                      key={cat}
-                      dataKey={cat}
-                      fill={`var(--color-${cat})`}
-                      fillOpacity={0.6}
-                    />
-                  ))}
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </section>
-
         <Card>
           <CardHeader>
             <CardTitle>{t("analytics.topSourcesTitle")}</CardTitle>
@@ -728,7 +936,198 @@ export function CatalogAnalyticsPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* ============ NEW BACKEND ANALYTICS SECTIONS ============ */}
+
+        {backendAnalyticsQuery.data && (
+          <>
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("analytics.sampleCountTitle")}</CardTitle>
+                  <CardDescription>
+                    {t("analytics.sampleCountDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      sampleCount: {
+                        label: t("analytics.tableColumns.samples"),
+                        color: "#2A9D8F"
+                      }
+                    }}
+                  >
+                    <BarChart
+                      data={backendAnalyticsQuery.data.catalogRows}
+                      margin={{ left: 8, right: 8 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="catalog"
+                        tickFormatter={(value) =>
+                          formatCatalogLabel(String(value))
+                        }
+                      />
+                      <YAxis scale="log" domain={[1, 10000]} width={56} />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            valueFormatter={(value) => String(value)}
+                          />
+                        }
+                      />
+                      <Bar
+                        dataKey="sampleCount"
+                        fill="var(--color-sampleCount)"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {t("analytics.significanceComparisonTitle")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("analytics.significanceComparisonDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      avgSignificance: {
+                        label: t("analytics.tableColumns.avgSigma"),
+                        color: "#2A9D8F"
+                      },
+                      peakSignificance: {
+                        label: t("analytics.tableColumns.peakSignificance"),
+                        color: "#E76F51"
+                      }
+                    }}
+                  >
+                    <BarChart
+                      data={backendAnalyticsQuery.data.significanceComparison}
+                      margin={{ left: 8, right: 8 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="catalog"
+                        tickFormatter={(value) =>
+                          formatCatalogLabel(String(value))
+                        }
+                      />
+                      <YAxis
+                        tickFormatter={(value) => formatFloat(value, 0)}
+                        width={56}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            valueFormatter={(value) => formatFloat(value, 2)}
+                          />
+                        }
+                      />
+                      <Legend />
+                      <Bar
+                        name={t("analytics.tableColumns.avgSigma")}
+                        dataKey="avgSignificance"
+                        fill="var(--color-avgSignificance)"
+                      />
+                      <Bar
+                        name={t("analytics.tableColumns.peakSignificance")}
+                        dataKey="peakSignificance"
+                        fill="var(--color-peakSignificance)"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("analytics.detectabilityMixTitle")}</CardTitle>
+                  <CardDescription>
+                    {t("analytics.detectabilityMixDescription")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      high: {
+                        label: t("analytics.detectabilityBands.high"),
+                        color: "#81B29A"
+                      },
+                      medium: {
+                        label: t("analytics.detectabilityBands.medium"),
+                        color: "#F2CC8F"
+                      },
+                      low: {
+                        label: t("analytics.detectabilityBands.low"),
+                        color: "#E07A5F"
+                      }
+                    }}
+                  >
+                    <BarChart
+                      data={backendAnalyticsQuery.data.detectabilityComparison}
+                      margin={{ left: 8, right: 8 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="catalog"
+                        tickFormatter={(value) =>
+                          formatCatalogLabel(String(value))
+                        }
+                      />
+                      <YAxis width={56} />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            valueFormatter={(value) => String(value)}
+                          />
+                        }
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey="high"
+                        stackId="detectability"
+                        fill="var(--color-high)"
+                      />
+                      <Bar
+                        dataKey="medium"
+                        stackId="detectability"
+                        fill="var(--color-medium)"
+                      />
+                      <Bar
+                        dataKey="low"
+                        stackId="detectability"
+                        fill="var(--color-low)"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </section>
+          </>
+        )}
       </div>
     </main>
+  );
+}
+
+function ObjectDetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-slate-900/40 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {label}
+      </p>
+      <p className="text-sm font-medium text-white/90 break-all">{value}</p>
+    </div>
   );
 }

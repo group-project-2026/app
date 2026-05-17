@@ -1,4 +1,5 @@
 from typing import List, Optional
+from django.utils import timezone
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
@@ -12,6 +13,10 @@ from catalogs.position_errors import (
     CombinedPositionError,
     ConfidenceCalculator,
     extract_position_error_from_metadata,
+)
+from catalogs.mss_wrapper import (
+    build_spectrum_from_catalog,
+    run_mss_simulation,
 )
 
 
@@ -42,6 +47,98 @@ class CrossMatchService:
         self.n_sigma_match = n_sigma_match
         self.use_position_errors = use_position_errors
         self.confidence_method = confidence_method
+        # Default MAGIC observation parameters
+        self.magic_observation_params = {
+            "observation_time_hours": 20,
+            "zenith_angle": "low",
+            "extension_deg": 0.0,
+            "offset_degradation": 1.0,
+        }
+        self.magic_params = {
+            "min_events": 10,
+            "min_sbr": 0.05,
+            "psf_deg": 0.1,
+            "num_off_regions": 3,
+        }
+        self.skip_magic = False  # Can be toggled before batch_match
+
+    def calculate_magic_for_entry(self, catalog_entry: CatalogEntry) -> bool:
+        """
+        Calculate and store MAGIC detectibility statistics for a CatalogEntry.
+
+        Only calculates if entry has complete spectral data (flux + spectral_index).
+        Stores results directly in catalog_entry MAGIC fields.
+        Gracefully skips if data incomplete - MAGIC fields remain NULL.
+
+        Args:
+            catalog_entry: CatalogEntry instance to analyze
+
+        Returns:
+            True if calculation succeeded, False if skipped or failed
+        """
+        try:
+            # Validate entry has required spectral data
+            if not catalog_entry.metadata:
+                return False
+
+            # Build spectrum function from metadata
+            spectrum_func = build_spectrum_from_catalog(catalog_entry.metadata)
+            if spectrum_func is None:
+                return False
+
+            # Run simulation with default parameters
+            result = run_mss_simulation(
+                spectrum_func=spectrum_func,
+                observation_time_hours=self.magic_observation_params[
+                    "observation_time_hours"
+                ],
+                zenith_angle=self.magic_observation_params["zenith_angle"],
+                extension_deg=self.magic_observation_params["extension_deg"],
+                offset_degrad=self.magic_observation_params["offset_degradation"],
+                psf_deg=self.magic_params["psf_deg"],
+                num_off_regions=self.magic_params["num_off_regions"],
+                min_events=self.magic_params["min_events"],
+                min_sbr=self.magic_params["min_sbr"],
+            )
+
+            # Extract aggregate statistics from results
+            aggregate_stats = result["aggregate_stats"]
+
+            # Store results in catalog entry
+            catalog_entry.magic_significance = aggregate_stats["total_significance"]
+            catalog_entry.magic_detectable = (
+                aggregate_stats["total_significance"] >= 5.0
+            )
+            catalog_entry.magic_calculated_at = timezone.now()
+
+            # Create hash of observation parameters for tracking
+            import hashlib
+            import json
+
+            params_str = json.dumps(
+                {**self.magic_observation_params, **self.magic_params}, sort_keys=True
+            )
+            catalog_entry.magic_params_hash = hashlib.md5(
+                params_str.encode()
+            ).hexdigest()
+
+            catalog_entry.save(
+                update_fields=[
+                    "magic_significance",
+                    "magic_detectable",
+                    "magic_calculated_at",
+                    "magic_params_hash",
+                ]
+            )
+
+            return True
+
+        except Exception as e:
+            # Log error but don't propagate - MAGIC calculation failure shouldn't block ingestion
+            print(
+                f"MAGIC calculation error for {catalog_entry}: {type(e).__name__}: {e}"
+            )
+            return False
 
     def _extract_position_error(
         self, metadata: dict, catalog_name: str
@@ -138,7 +235,9 @@ class CrossMatchService:
         # Use statistical confidence method
         if self.confidence_method == "gaussian":
             calc = ConfidenceCalculator()
-            return calc.gaussian_confidence(separation_deg, combined_error.get_combined_sigma())
+            return calc.gaussian_confidence(
+                separation_deg, combined_error.get_combined_sigma()
+            )
         elif self.confidence_method == "mahalanobis":
             # Use Mahalanobis if both errors are elliptical
             if isinstance(source_error, EllipticalPositionError) and isinstance(
@@ -219,14 +318,18 @@ class CrossMatchService:
             source_error = None
             source_entries = CatalogEntry.objects.filter(source=source)
             for entry in source_entries:
-                extracted_error = self._extract_position_error(entry.metadata, entry.catalog_name)
+                extracted_error = self._extract_position_error(
+                    entry.metadata, entry.catalog_name
+                )
                 if extracted_error:
                     source_error = extracted_error
                     break
 
             # Calculate confidence
             if confidence is None:
-                confidence = self._calculate_confidence(separation_deg, source_error, catalog_error)
+                confidence = self._calculate_confidence(
+                    separation_deg, source_error, catalog_error
+                )
         else:
             # Create new unified source
             source = Source.objects.create(
@@ -254,9 +357,7 @@ class CrossMatchService:
 
         return source
 
-    def find_nearby(
-        self, ra: float, dec: float, radius_deg: float = None
-    ) -> QuerySet:
+    def find_nearby(self, ra: float, dec: float, radius_deg: float = None) -> QuerySet:
         """
         Query for sources within radius degrees of given position.
         Uses PostGIS ST_DWithin for efficient spatial search.
@@ -288,7 +389,7 @@ class CrossMatchService:
         self, sources_data: List[dict], catalog_name: str
     ) -> tuple[int, int]:
         """
-        Perform batch cross-matching for multiple sources.
+        Perform batch cross-matching for multiple sources with optional MAGIC calculation.
 
         Args:
             sources_data: List of dicts with 'name', 'ra', 'dec', etc.
@@ -299,6 +400,8 @@ class CrossMatchService:
         """
         created_count = 0
         matched_count = 0
+        magic_count = 0
+        magic_skipped = 0
 
         for source_data in sources_data:
             try:
@@ -312,9 +415,16 @@ class CrossMatchService:
                     discovery_method=source_data.get("discovery_method", ""),
                 )
 
+                # Get the specific CatalogEntry that was created/updated
+                catalog_entry = CatalogEntry.objects.get(
+                    source=source,
+                    catalog_name=catalog_name,
+                    original_name=source_data.get("name", ""),
+                )
+
                 # Check if source was newly created
-                catalog_entry_count = CatalogEntry.objects.filter(source=source).count()
-                if catalog_entry_count == 1:
+                entry_count = CatalogEntry.objects.filter(source=source).count()
+                if entry_count == 1:
                     created_count += 1
                 else:
                     print(
@@ -322,9 +432,23 @@ class CrossMatchService:
                     )
                     matched_count += 1
 
+                # Calculate MAGIC detectibility statistics (unless skipped)
+                if not self.skip_magic:
+                    if self.calculate_magic_for_entry(catalog_entry):
+                        magic_count += 1
+                    else:
+                        magic_skipped += 1
+
             except Exception as e:
                 # Log error but continue processing
-                print(f"Error processing source {source_data.get('name', 'unknown')}: {e}")
+                print(
+                    f"Error processing source {source_data.get('name', 'unknown')}: {e}"
+                )
                 continue
+
+        if magic_count > 0 or magic_skipped > 0:
+            print(
+                f"  MAGIC: {magic_count} calculated, {magic_skipped} skipped (incomplete data)"
+            )
 
         return created_count, matched_count

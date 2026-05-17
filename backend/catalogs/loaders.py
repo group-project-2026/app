@@ -56,7 +56,9 @@ class FermiLoader(CatalogLoader):
     """
 
     catalog_name = "FERMI"
-    FITS_URL = "https://fermi.gsfc.nasa.gov/ssc/data/access/lat/10yr_catalog/gll_psc_v27.fit"
+    FITS_URL = (
+        "https://fermi.gsfc.nasa.gov/ssc/data/access/lat/10yr_catalog/gll_psc_v27.fit"
+    )
     FITS_LOCAL = FILES_DIR / "gll_psc_v27.fit"
 
     def __init__(self, fits_path: str = None, fits_url: str = None):
@@ -77,13 +79,13 @@ class FermiLoader(CatalogLoader):
 
         session = _get_session_with_ssl()
         try:
-            response = session.get(
-                self.fits_url, stream=True, timeout=120, verify=True)
+            response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
             response.raise_for_status()
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
             # Retry without SSL verification as fallback
             response = session.get(
-                self.fits_url, stream=True, timeout=120, verify=False)
+                self.fits_url, stream=True, timeout=120, verify=False
+            )
             response.raise_for_status()
 
         with open(self.fits_path, "wb") as f:
@@ -200,15 +202,14 @@ class LHASOLoader(CatalogLoader):
         session = _get_session_with_ssl()
         try:
             # Try with SSL verification first
-            response = session.get(
-                self.fits_url, stream=True, timeout=120, verify=True)
+            response = session.get(self.fits_url, stream=True, timeout=120, verify=True)
             response.raise_for_status()
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
             # Retry without SSL verification as fallback
-            print(
-                f"SSL verification failed, retrying without verification: {e}")
+            print(f"SSL verification failed, retrying without verification: {e}")
             response = session.get(
-                self.fits_url, stream=True, timeout=120, verify=False)
+                self.fits_url, stream=True, timeout=120, verify=False
+            )
             response.raise_for_status()
 
         with open(self.fits_path, "wb") as f:
@@ -237,7 +238,14 @@ class LHASOLoader(CatalogLoader):
                         ra = float(row[ra_col])
                         break
 
-                for dec_col in ["DEC", "dec", "DEJ2000", "DE_J2000", "DECJ2000", "DEC_J2000"]:
+                for dec_col in [
+                    "DEC",
+                    "dec",
+                    "DEJ2000",
+                    "DE_J2000",
+                    "DECJ2000",
+                    "DEC_J2000",
+                ]:
                     if dec_col in table.colnames:
                         dec = float(row[dec_col])
                         break
@@ -286,7 +294,14 @@ class LHASOLoader(CatalogLoader):
                             pass
 
                 # Extract extension/size
-                for ext_col in ["Extension", "extension", "Size", "size", "Radius", "r39"]:
+                for ext_col in [
+                    "Extension",
+                    "extension",
+                    "Size",
+                    "size",
+                    "Radius",
+                    "r39",
+                ]:
                     if ext_col in table.colnames:
                         try:
                             metadata["extension_deg"] = self._f(row[ext_col])
@@ -295,7 +310,14 @@ class LHASOLoader(CatalogLoader):
 
                 # Extract position error
                 pos_err_found = False
-                for pos_err_col in ["POS_ERR", "pos_err", "POSITIONAL_ERROR", "position_error", "pos_err_deg", "sigma_p95"]:
+                for pos_err_col in [
+                    "POS_ERR",
+                    "pos_err",
+                    "POSITIONAL_ERROR",
+                    "position_error",
+                    "pos_err_deg",
+                    "sigma_p95",
+                ]:
                     if pos_err_col in table.colnames:
                         try:
                             err_val = self._f(row[pos_err_col])
@@ -311,13 +333,15 @@ class LHASOLoader(CatalogLoader):
                     # LHAASO DR1 typical
                     metadata["pos_err_circular_deg"] = 0.02
 
-                sources.append({
-                    "name": source_name,
-                    "ra": ra,
-                    "dec": dec,
-                    "discovery_method": "gamma-ray (LHAASO)",
-                    "metadata": metadata,
-                })
+                sources.append(
+                    {
+                        "name": source_name,
+                        "ra": ra,
+                        "dec": dec,
+                        "discovery_method": "gamma-ray (LHAASO)",
+                        "metadata": metadata,
+                    }
+                )
 
             except (KeyError, ValueError, TypeError) as e:
                 # Skip problematic rows
@@ -381,15 +405,14 @@ class HAWCLoader(CatalogLoader):
         session = _get_session_with_ssl()
         try:
             # Try with SSL verification first
-            response = session.get(
-                self.yaml_url, stream=True, timeout=120, verify=True)
+            response = session.get(self.yaml_url, stream=True, timeout=120, verify=True)
             response.raise_for_status()
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
             # Retry without SSL verification as fallback
-            print(
-                f"SSL verification failed, retrying without verification: {e}")
+            print(f"SSL verification failed, retrying without verification: {e}")
             response = session.get(
-                self.yaml_url, stream=True, timeout=120, verify=False)
+                self.yaml_url, stream=True, timeout=120, verify=False
+            )
             response.raise_for_status()
 
         with open(self.yaml_path, "wb") as f:
@@ -432,13 +455,31 @@ class HAWCLoader(CatalogLoader):
                 dec = None
 
                 # Try RA column - try all case variations
-                for ra_key in ["RA", "ra", "Ra", "RA_J2000", "RAJ2000", "ra_j2000", "RA_DEG"]:
+                for ra_key in [
+                    "RA",
+                    "ra",
+                    "Ra",
+                    "RA_J2000",
+                    "RAJ2000",
+                    "ra_j2000",
+                    "RA_DEG",
+                ]:
                     if ra_key in item:
                         ra = float(item[ra_key])
                         break
 
                 # Try DEC column - try ALL case variations (Dec, DEC, dec, etc.)
-                for dec_key in ["Dec", "DEC", "dec", "Dec_J2000", "DEC_J2000", "DEJ2000", "dec_j2000", "DEC_DEG", "Declination"]:
+                for dec_key in [
+                    "Dec",
+                    "DEC",
+                    "dec",
+                    "Dec_J2000",
+                    "DEC_J2000",
+                    "DEJ2000",
+                    "dec_j2000",
+                    "DEC_DEG",
+                    "Declination",
+                ]:
                     if dec_key in item:
                         dec = float(item[dec_key])
                         break
@@ -446,16 +487,28 @@ class HAWCLoader(CatalogLoader):
                 if ra is None or dec is None:
                     # Debug message
                     if ra is None:
-                        print(f"  ⚠️  Could not find RA in source: {
-                              item.get('name', 'unknown')}")
+                        print(
+                            f"  ⚠️  Could not find RA in source: {
+                              item.get('name', 'unknown')}"
+                        )
                     if dec is None:
-                        print(f"  ⚠️  Could not find Dec in source: {
-                              item.get('name', 'unknown')}")
+                        print(
+                            f"  ⚠️  Could not find Dec in source: {
+                              item.get('name', 'unknown')}"
+                        )
                     continue  # Skip if no coordinates
 
                 # Extract source name
                 source_name = None
-                for name_key in ["name", "source_name", "Name", "Source_Name", "NAME", "designation", "source"]:
+                for name_key in [
+                    "name",
+                    "source_name",
+                    "Name",
+                    "Source_Name",
+                    "NAME",
+                    "designation",
+                    "source",
+                ]:
                     if name_key in item:
                         source_name = self._s(item[name_key])
                         break
@@ -476,8 +529,10 @@ class HAWCLoader(CatalogLoader):
                     (["flux_lower_bound", "Flux_Lower_Bound"], "flux_tev_lower"),
                     (["significance", "Significance"], "significance"),
                     (["spectral_index", "Spectral_Index", "index"], "spectral_index"),
-                    (["spectral_index_error", "Spectral_Index_Error"],
-                     "spectral_index_err"),
+                    (
+                        ["spectral_index_error", "Spectral_Index_Error"],
+                        "spectral_index_err",
+                    ),
                     (["TS", "ts", "Test_Statistic"], "ts"),
                     (["variability", "Variability"], "variability"),
                     (["extension", "Extension"], "extension"),
@@ -491,7 +546,12 @@ class HAWCLoader(CatalogLoader):
 
                 # Extract position uncertainty (in degrees)
                 pos_err_found = False
-                for pos_err_key in ["position uncertainty", "position_uncertainty", "pos_err", "pos_uncertainty"]:
+                for pos_err_key in [
+                    "position uncertainty",
+                    "position_uncertainty",
+                    "pos_err",
+                    "pos_uncertainty",
+                ]:
                     if pos_err_key in item:
                         pos_err_val = self._f(item[pos_err_key])
                         if pos_err_val:
@@ -554,12 +614,13 @@ class TeVCatLoader(CatalogLoader):
 
         try:
             heasarc = Heasarc()
-            result = heasarc.query_tap(
-                query=f"SELECT * FROM {self.HEASARC_TABLE}")
+            result = heasarc.query_tap(query=f"SELECT * FROM {self.HEASARC_TABLE}")
             table = result.to_table()
         except Exception as e:
-            print(f"⚠️  Error querying HEASARC TeVCat: {
-                  type(e).__name__}: {e}")
+            print(
+                f"⚠️  Error querying HEASARC TeVCat: {
+                  type(e).__name__}: {e}"
+            )
             return []
 
         return self._normalize(table)
@@ -572,8 +633,11 @@ class TeVCatLoader(CatalogLoader):
             if ra is None or dec is None:
                 continue
 
-            name = self._s(row.get("name")) or f"TeVCat J{
+            name = (
+                self._s(row.get("name"))
+                or f"TeVCat J{
                 ra:07.2f}{dec:+07.2f}"
+            )
 
             metadata = {
                 "catalog_version": "TeVCat (HEASARC)",
@@ -593,7 +657,14 @@ class TeVCatLoader(CatalogLoader):
 
             # Extract position error - try multiple column name variations
             pos_err_found = False
-            for pos_err_col in ["ra_err", "dec_err", "pos_err", "position_error", "RA_ERR", "DEC_ERR"]:
+            for pos_err_col in [
+                "ra_err",
+                "dec_err",
+                "pos_err",
+                "position_error",
+                "RA_ERR",
+                "DEC_ERR",
+            ]:
                 if pos_err_col in row.colnames:
                     try:
                         err_val = self._f(row[pos_err_col])
@@ -607,12 +678,18 @@ class TeVCatLoader(CatalogLoader):
                     print(row.colnames)
 
             # If separate RA and DEC errors, combine them
-            if not pos_err_found and ("ra_err" in row.colnames or "dec_err" in row.colnames):
+            if not pos_err_found and (
+                "ra_err" in row.colnames or "dec_err" in row.colnames
+            ):
                 try:
-                    ra_err = self._f(row.get("ra_err")
-                                     ) if "ra_err" in row.colnames else None
-                    dec_err = self._f(row.get("dec_err")
-                                      ) if "dec_err" in row.colnames else None
+                    ra_err = (
+                        self._f(row.get("ra_err")) if "ra_err" in row.colnames else None
+                    )
+                    dec_err = (
+                        self._f(row.get("dec_err"))
+                        if "dec_err" in row.colnames
+                        else None
+                    )
                     if ra_err and dec_err:
                         combined_err = math.sqrt(ra_err**2 + dec_err**2)
                         metadata["pos_err_circular_deg"] = combined_err
@@ -625,13 +702,15 @@ class TeVCatLoader(CatalogLoader):
                 # Conservative default for TeVCat
                 metadata["pos_err_circular_deg"] = 0.05
 
-            sources.append({
-                "name": name,
-                "ra": ra,
-                "dec": dec,
-                "discovery_method": "gamma-ray (TeV)",
-                "metadata": metadata,
-            })
+            sources.append(
+                {
+                    "name": name,
+                    "ra": ra,
+                    "dec": dec,
+                    "discovery_method": "gamma-ray (TeV)",
+                    "metadata": metadata,
+                }
+            )
 
         return sources
 
