@@ -49,7 +49,7 @@ backend/
 | `fermi` | Legacy Fermi-LAT–specific models (`FermiSource`, `SedPoint`) loaded from the 4FGL FITS file |
 
 ---
-
+ć
 ## Configuration
 
 Settings file: `backend/app/settings.py`
@@ -142,6 +142,22 @@ Router: DRF `DefaultRouter`
 | GET | `/api/sources/analytics/` | Analytics dashboard data: catalog comparison, detection trends, significance histogram. Params: `catalog`, `search`. |
 | GET | `/api/sources/analytics_map/` | Map-ready paginated points with spatial/temporal bounding. Params: `catalog`, `search`, `ra_min/max`, `dec_min/max`, `significance_min/max`, `flux_min/max`, `discovery_date_start/end`, `ra`, `dec`, `radius`. |
 | GET | `/api/sources/{id}/catalog_entries/` | All catalog entries for a source. |
+| GET | `/api/sources/{id}/magic_simulation/` | On-demand MAGIC telescope simulation for a source. Returns pre-calculated results if live spectrum data is unavailable. Returns HTTP 400 if neither live nor pre-calculated data is available. |
+
+#### MAGIC Simulation Parameters
+
+| Parameter | Type | Range | Default | Description |
+|-----------|------|-------|---------|-------------|
+| `zenith_angle` | string | `low` / `mid` / `high` | — | Zenith angle band |
+| `observation_time_hours` | float | 0.1–10 000 | 20 | Observation time in hours |
+| `psf_deg` | float | 0–1 | 0.1 | Point spread function radius (degrees) |
+| `extension_deg` | float | 0–1 | 0 | Source extension (degrees) |
+| `offset_deg` | float | 0.01–1 | 1 | Camera offset (degrees) |
+| `num_off_regions` | int | 1–7 | 3 | Number of off regions |
+| `min_events` | int | 1–1 000 | 10 | Minimum event count threshold |
+| `min_sbr` | float | 0–1 | 0.05 | Minimum signal-to-background ratio |
+
+The response includes simulation results augmented with the source metadata and its matching catalog entry. During catalog ingestion, MAGIC simulation results are pre-calculated for each source with complete spectral data and stored in the catalog entry metadata (`magic_significance`, `magic_detectable`, `magic_calculated_at`, `magic_params_hash`); sources with incomplete spectra are silently skipped.
 
 Search fields: `unified_name`, `catalog_entries__original_name`.
 Ordering fields: `unified_name`, `created_at`, `primary_catalog`.

@@ -480,6 +480,18 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
     return values.length === 0 ? 1 : Math.max(...values, 1);
   }, [visiblePoints]);
 
+  const formatMagicStatus = (point: SourceMapPoint): string => {
+    if (typeof point.magic_significance !== "number") {
+      return t("analytics.magic.statusUnavailable");
+    }
+
+    if (point.magic_detectable) {
+      return t("analytics.magic.statusDetectable");
+    }
+
+    return t("analytics.magic.statusNotDetectable");
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || mapSize.width <= 0 || mapSize.height <= 0) {
@@ -853,6 +865,11 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
                 {t("analytics.map.significance")}:{" "}
                 {formatStat(hoveredPoint.significance ?? undefined)}
               </p>
+              <p>
+                {t("analytics.magic.fields.significance")}:{" "}
+                {formatStat(hoveredPoint.magic_significance ?? undefined)}
+              </p>
+              <p>{formatMagicStatus(hoveredPoint)}</p>
             </div>
           ) : null}
 
@@ -939,6 +956,20 @@ export function CatalogSkyMap({ selectedCatalogs }: CatalogSkyMapProps) {
               <p className="text-sm">
                 {formatStat(selectedPoint.significance ?? undefined)}
               </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">
+                {t("analytics.magic.fields.significance")}
+              </p>
+              <p className="text-sm">
+                {formatStat(selectedPoint.magic_significance ?? undefined)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">
+                {t("analytics.magic.fields.detectable")}
+              </p>
+              <p className="text-sm">{formatMagicStatus(selectedPoint)}</p>
             </div>
           </div>
         ) : null}

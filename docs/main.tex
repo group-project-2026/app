@@ -116,34 +116,49 @@ The on-sky angular separation between a candidate position $(\alpha_1, \delta_1)
 Catalog-specific metadata is preserved in a \texttt{JSONField} on the \texttt{CatalogEntry} model, allowing each catalog's native fields to be stored without schema migration when new catalogs are added.
 The ingestion pipeline is exposed as a Django management command (\texttt{ingest\_catalogs}) that accepts a \texttt{-{}-catalogs} flag to ingest a subset of catalogs and a \texttt{-{}-match-radius} flag to override the default cross-matching threshold, facilitating sensitivity analysis of the association algorithm.
 
-\section{Numerical code implementation, UX/UI, documentation, user instructions -- Sandra Dembińska}
+\section{UX/UI, documentation, user instructions -- Sandra Dembińska}
 
-Sandra Dembińska was responsible for integrating the MAGIC Source Simulator (MSS) into the application workflow, providing the numerical backbone for evaluating the detectability of 4FGL sources with Imaging Atmospheric Cherenkov Telescopes.
-The MSS takes as input a spectral model for the candidate source (typically a power-law parametrised by flux normalisation and spectral index), the instrument response functions (IRFs) of the target IACT, and the assumed observation time $T_{\text{obs}}$; it returns an estimate of the predicted detection significance $S_{\text{pred}}$.
+Sandra Dembińska was responsible for the project documentation, user experience design, and requirements specification.
 
-% TODO: expand with specific MSS API call signature once integration code is finalised
+Early in the project she prepared wireframes in Figma that defined the layout, component hierarchy, and navigation flow adopted by the frontend implementation.
+The wireframes covered all four main views of the application, each corresponding to a top-level navigation entry: \emph{Strona główna}, \emph{Mapa wszechświata}, \emph{Analityka}, and \emph{Źródła}.
 
-The detectability of each source is quantified within the application by a composite scoring metric that combines three observable quantities: the detection significance $\sigma$ drawn from the source's catalog entry, the integrated photon flux above 1\,GeV $F_{1000}$ (in units of $\text{ph\,cm}^{-2}\text{s}^{-1}$), and the cross-match confidence $c \in [0, 1]$.
-The score is computed as:
-\begin{equation}
-    S = \text{clamp}\!\left(5\,\sigma + 6\,\log_{10}\!\left(F_{1000} \times 10^{13} + 1\right) + 40\,c,\; 0,\; 100\right)
-\end{equation}
-Sources are then classified into three detectability tiers: \emph{low} ($S < 40$), \emph{medium} ($40 \le S < 70$), and \emph{high} ($S \ge 70$).
-The scoring weights were chosen so that a source with significance $\sigma \approx 10$, typical flux, and full cross-match confidence yields a score in the medium-to-high range, consistent with the expectation that well-established \textit{Fermi} sources with confirmed TeV counterparts should rank highly.
+The \emph{Strona główna} (home page) wireframe establishes the global navigation bar shared across all views and presents an interactive 3D celestial sphere as the landing visual, with gamma-ray sources rendered as colour-coded points on the globe surface.
+The \emph{Mapa wszechświata} wireframe places the 3D globe at the centre of the layout with two flanking side panels: a \emph{Legenda} panel on the left and a \emph{Filtry} panel on the right, both using checkbox lists to control source visibility per catalog.
+The \emph{Analityka} wireframe defines a multi-section analytics dashboard: a catalog selector row (Fermi, HAWC, LHAASO, NED, TeVCat), a summary statistics table comparing catalogs across columns such as source count, average and median emission, average and peak significance, and high-detectability percentage, followed by KPI summary cards and a chart section containing an annual emission trend line chart, an average-vs-peak emission bar chart, and a statistical significance histogram.
+The \emph{Źródła} wireframe specifies the source catalog browser: a filter panel exposing text search, source class selector, RA and Dec range inputs, minimum flux, and minimum significance fields, followed by a paginated data table with columns for source name, class, RA, Dec, Galactic longitude and latitude, flux, spectral index, and detection significance.
 
-For sources with MSS simulation results, the statistical significance of detection is evaluated following the Li \& Ma formalism \citep{LiMa1983}:
-\begin{equation}
-    S_{\text{LiMa}} = \sqrt{2}\left[N_{\text{on}}\ln\!\frac{(1+\alpha)N_{\text{on}}}{\alpha(N_{\text{on}}+N_{\text{off}})} + N_{\text{off}}\ln\!\frac{(1+\alpha)N_{\text{off}}}{N_{\text{on}}+N_{\text{off}}}\right]^{1/2}
-\end{equation}
-where $N_{\text{on}}$ and $N_{\text{off}}$ are the event counts in the signal and background control regions, and $\alpha$ is the ratio of on-to-off exposure.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.48\textwidth]{figures/wireframe_home.jpg}
+    \hfill
+    \includegraphics[width=0.48\textwidth]{figures/wireframe_universe_map.jpg}
+    \caption{Wireframes for the \emph{Strona główna} (left) and \emph{Mapa wszechświata} (right) views. The home page presents the top navigation bar and an interactive 3D celestial sphere with colour-coded source points. The universe map view centres the same globe between a \emph{Legenda} panel (left) and a \emph{Filtry} panel (right), each containing per-catalog checkbox controls.}
+    \label{fig:wireframes_map}
+\end{figure}
 
-The user interface was designed to present detectability results in an accessible, astronomy-oriented layout.
-The main navigation provides direct routes to the source catalog browser, the analytics dashboard, and the interactive sky map.
-Each source detail page displays the unified source record, all associated catalog entries with their native metadata fields, and the computed detectability score with tier classification.
-The analytics dashboard aggregates detection trends, catalog comparison breakdowns, and a log-spaced significance histogram across the full source set.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.48\textwidth]{figures/wireframe_analytics.jpg}
+    \hfill
+    \includegraphics[width=0.48\textwidth]{figures/wireframe_sources.jpg}
+    \caption{Wireframes for the \emph{Analityka} (left) and \emph{Źródła} (right) views. The analytics dashboard shows a catalog selector, a per-catalog statistics table, KPI summary cards, and three chart sections (emission trend, average-vs-peak bar chart, significance histogram). The sources view presents a filter panel with coordinate range, flux, and significance inputs above a paginated data table listing source name, class, coordinates, flux, spectral index, and detection significance.}
+    \label{fig:wireframes_data}
+\end{figure}
 
-Sandra Dembińska also authored the user-facing documentation and in-application instructions that guide users through catalog browsing, filter usage, sky map interaction, and interpretation of detectability estimates.
-The documentation is structured to serve both the domain expert seeking specific catalog data and the general user unfamiliar with gamma-ray astronomy conventions.
+She produced the full requirements specification for the application in collaboration with the entire team.
+Requirements were derived iteratively through team discussions, with each contributor reviewing and refining the specification to ensure it accurately reflected both the scientific goals and the technical constraints of the system.
+The final specification contains 66 functional requirements (FR-01–FR-66) and 16 non-functional requirements (NFR-01–NFR-16).
+The functional requirements are grouped into seven areas: catalog ingestion (FR-01–FR-10), data model and storage (FR-11–FR-18), REST API (FR-19–FR-35), scoring and analytics calculations (FR-36–FR-39), the catalog browser frontend (FR-40–FR-45), the analytics dashboard frontend (FR-46–FR-57), the 3D Universe Map frontend (FR-58–FR-64), and internationalisation (FR-65–FR-66).
+The non-functional requirements cover performance, startup and reliability, data persistence, spatial indexing, time and locale handling, accessibility, deployability, and pre-production security constraints.
+
+Sandra Dembińska also produced the complete technical documentation suite.
+The \emph{backend documentation} describes the full technology stack (Python~3.12, Django~6, Django REST Framework, PostGIS), the four-app Django project layout (\texttt{sources}, \texttt{catalogs}, \texttt{api}, \texttt{fermi}), the two core data models (\texttt{Source} and \texttt{CatalogEntry}), all seven REST API endpoints with their query parameters, and the catalog ingestion management commands for each of the four supported catalogs.
+The \emph{frontend documentation} covers the technology stack (React~19, TypeScript~5.9, Vite~8, TanStack React Query, Three.js, D3, i18next), the full \texttt{src/} directory layout, the five-route React Router configuration, the three custom query hooks, the API module structure, Vite proxy configuration, environment variables, internationalisation setup, and test tooling.
+The \emph{infrastructure documentation} details the three-service Docker Compose topology with its health-check dependency chain, volume and network configuration, both Dockerfiles (backend based on \texttt{python:3.12.13-slim-bookworm}, frontend on \texttt{node:22.22.2-bookworm-slim}), environment variable management via a single \texttt{.env} file, and common operational procedures.
+
+Finally, she authored the \emph{user manual}, structured into eight chapters: Getting Started, Navigation, Home Page, Sources~--~Catalog Browser (with subsections on filters, the results table, and the source detail view), Analytics Dashboard (sky map, analysis scope, headline metrics, charts, and top sources table), Universe Map~--~3D View (controls, filters and legend, and the source detail panel), Data Reference (catalogs, source classes, and field definitions), and Language.
+The manual is written to serve both the domain expert seeking specific catalog data and the general user unfamiliar with gamma-ray astronomy conventions.
 
 \section{Application frontend  -- Wojciech Jabłoński}
 
@@ -157,7 +172,6 @@ The layout is fully responsive, adapting to mobile viewports through Tailwind CS
 
 All asynchronous data fetching is managed through TanStack React Query~v5.
 A \texttt{QueryClient} with a default stale time of five minutes is configured at the application root.
-Custom query hooks (\texttt{useSourcesData}, \texttt{useSourceDetail}, \texttt{useSourceCatalogEntries}) encapsulate fetch logic and surface \texttt{isLoading}, \texttt{isError}, and \texttt{data} states to consuming components, keeping data-fetching and presentation concerns cleanly separated.
 The Vite development server proxies all \texttt{/api} requests to the Django backend, configurable via the \texttt{VITE\_PROXY\_TARGET} environment variable.
 
 Code quality tooling configured as part of this contribution includes ESLint, Prettier, and Husky pre-commit hooks that enforce linting and formatting before every commit.
@@ -165,12 +179,84 @@ Code quality tooling configured as part of this contribution includes ESLint, Pr
 The architecture deliberately avoids a global state management library.
 All shared state is either query cache (React Query) or local component state (\texttt{useState}), which keeps the data flow unidirectional and makes individual components straightforward to test in isolation with Jest and Testing Library.
 
+The analytics dashboard (\texttt{CatalogAnalyticsPage}) is populated from the \texttt{/api/sources/analytics/} endpoint and presents four visualisation panels:
+\begin{enumerate}
+    \item \textbf{Catalog comparison} — bar chart of source counts per catalog.
+    \item \textbf{Detection trends} — time series of newly ingested sources by month.
+    \item \textbf{Significance histogram} — log-spaced bins over the range $[10^0, 10^4]$ (15 bins), with the 95th-percentile significance value annotated.
+    \item \textbf{Detectability breakdown} — stacked bar or pie chart showing the proportion of sources in each detectability tier (low, medium, high).
+\end{enumerate}
+
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/placeholder_catalog_aggregation.png}
+    \includegraphics[width=0.8\linewidth]{skymap.png}
     \caption{Sky distribution of ingested sources colour-coded by primary catalog (Fermi-LAT, HAWC, LHAASO, TeVCat), shown in Galactic coordinates with an Aitoff projection, as rendered by the analytics sky map view built into the application frontend.}
     \label{fig:catalog_aggregation}
 \end{figure}
+He also focused on integrating MAGIC Source Simulator (MSS) detectability predictions into the analytics dashboard and visualizing source spectral energy distributions (SEDs) within the web application frontend.
+
+The SED visualization component renders simulated spectral bins for sources where MAGIC detectability predictions are available, allowing astronomers to inspect the predicted gamma-ray flux as a function of observational energy bands.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{image.png}
+    \caption{Spectral energy distribution for 4FGL~J0532.6+0732 simulated by MAGIC Source Simulator for a 20-hour observation showing near-complete detection (12/13 bins) across 100~GeV--10~TeV with 100\% detection probability.}
+    \label{fig:magic_sed_example}
+\end{figure}
+
+\subsection{Data normalization and schema handling}
+
+The backend MSS integration exposes a \texttt{/api/sources/\{id\}/magic\_simulation/} endpoint that returns a JSON response containing an array of spectral points, each recording the simulated flux at a discrete energy bin alongside detection metadata.
+To accommodate backward compatibility during schema evolution, the frontend normalisation layer accepts multiple naming conventions for the same physical quantity:
+\begin{itemize}
+    \item Integrated flux: \texttt{flux\_sed\_tev\_cm2\_s}
+    \item Flux uncertainty: \texttt{flux\_sed\_error}
+    \item Energy: \texttt{energy\_gev}
+    \item Detection flag: \texttt{is\_detected}
+    \item Statistical significance: \texttt{significance\_sigma}
+\end{itemize}
+
+Each incoming spectral point is normalized into an internal representation containing seven fields: energy, flux, fluxLow, fluxHigh, significance, isDetected, and an index. The asymmetric error bounds are computed as:
+\begin{equation}
+    \mathrm{fluxLow} = \mathrm{flux} - \Delta\mathrm{flux}, \quad \mathrm{fluxHigh} = \mathrm{flux} + \Delta\mathrm{flux}
+\end{equation}
+where $\Delta\mathrm{flux}$ is the reported flux uncertainty.
+Points with non-finite or non-positive energy and flux values are filtered to ensure compatibility with logarithmic axis scaling.
+
+\subsection{Chart rendering and log-space transformation}
+
+The SED is visualized using Recharts, a declarative charting library built on React and D3. Both the energy (x-axis) and flux (y-axis) are rendered on logarithmic scales with the configuration \texttt{scale="log"} and \texttt{domain=["auto", "auto"]}, allowing Recharts to infer the axis bounds from the filtered point set.
+Unlike some plotting libraries that require pre-logarithmic transformation of data, Recharts expects raw (linear-space) values and applies the log transformation internally; this ensures that error bar rendering and tick calculations remain numerically stable.
+
+The chart displays two distinct series:
+\begin{enumerate}
+    \item \textbf{Detected points} — plotted as a scatter series with circular markers (colour \texttt{\#3266ad}), representing spectral bins where the simulated detection significance exceeds a threshold.
+    \item \textbf{Upper limits} — plotted with downward-pointing triangle markers (colour \texttt{\#888780}), representing bins where no significant detection is predicted (e.g.\ low significance or low flux regimes).
+\end{enumerate}
+
+Axis tick positions are generated adaptively using a custom tick builder that identifies decade boundaries and intermediate points. The energy axis tick formatter produces labels in the form $10^n$ (using Unicode superscript characters) when the tick value coincides with a power of ten, and scientific notation otherwise. Intermediate ticks at $10^{n+0.5}$ (e.g.\ the geometric mean between decades) are included to reduce label density while maintaining readability across multiple orders of magnitude.
+
+\subsection{Error bar visualization}
+
+Asymmetric error bars are rendered using Recharts' \texttt{<ErrorBar>} component with a custom accessor function:
+\begin{equation}
+    \mathrm{errorBarAccessor}(d) = [\mathrm{fluxLow}, \mathrm{fluxHigh}]
+\end{equation}
+This accessor extracts the pre-computed bounds for each point. Because the y-axis uses logarithmic scaling, both $\mathrm{fluxLow}$ and $\mathrm{fluxHigh}$ must be strictly positive ($> 0$); points where the lower error bound is non-positive are not plotted. This represents a known edge case: if the MSS simulation predicts a low flux with a large relative uncertainty, the computed $\mathrm{fluxLow}$ may be negative or zero and cannot be displayed on a log scale. Recommended future mitigation includes clamping $\mathrm{fluxLow}$ to a small positive value (e.g.\ $\mathrm{flux} \times 10^{-30}$) or rendering a truncated arrow marker to indicate a lower bound below the axis range.
+
+\subsection{Interactive tooltip and value extraction}
+
+A custom \texttt{SedTooltip} component intercepts hover events and displays point-specific information. The Recharts tooltip payload contains complex nested structures with unknown types at runtime.
+
+This avoids \texttt{any} type casts and provides graceful fallback to \texttt{NaN} for unparseable values. The tooltip displays:
+\begin{itemize}
+    \item Energy (formatted with human-readable units: GeV for $E < 1000$\,GeV, TeV for $E \ge 1000$\,GeV)
+    \item Flux (scientific notation, two decimal places)
+    \item Flux low and flux high bounds (scientific notation)
+    \item Significance $\sigma$ (fixed-point, one decimal place)
+\end{itemize}
+
+The tooltip is styled with a semi-transparent dark card background and high-contrast foreground text to ensure readability over the chart plot area.
 
 \begin{figure}[h]
     \centering
@@ -185,6 +271,9 @@ Mateusz Jaworski implemented the main application interface through which users 
 He was also responsible for the application routing and internationalisation.
 Routing is handled by React Router~v7 in \texttt{BrowserRouter} mode; all routes share an \texttt{AppLayout} wrapper that renders the \texttt{NavigationHeader} and an \texttt{<Outlet>} for the active page, covering the paths \texttt{/}, \texttt{/universe-map}, \texttt{/source-analytics}, \texttt{/sources}, and \texttt{/sources/:id}.
 Internationalisation is implemented with i18next~v26; both English and Polish translations are provided in \texttt{src/locales/en.json} and \texttt{src/locales/pl.json}, with the active language persisted in \texttt{localStorage} and toggled via the \texttt{LanguageSwitcher} component.
+
+Mateusz Jaworski also implemented the custom React Query hooks that encapsulate all data fetching in the application: \texttt{useSourcesData} for the paginated and filtered sources list, \texttt{useSourceDetail} for individual source records, and \texttt{useSourceCatalogEntries} for the catalog entries of a given source.
+Each hook surfaces \texttt{isLoading}, \texttt{isError}, and \texttt{data} states to consuming components, keeping data-fetching and presentation concerns cleanly separated from page rendering logic.
 
 The sources list page (\texttt{SourcesPage}) fetches data from the \texttt{/api/sources/filter/} endpoint with server-side pagination and supports the following filter dimensions:
 
@@ -203,15 +292,7 @@ Pagination state and filter values are managed with \texttt{useState} hooks loca
 The source detail page (\texttt{SourceDetailPage}) renders the unified \texttt{Source} record — name, equatorial coordinates, primary catalog, discovery date — followed by a table of all associated \texttt{CatalogEntry} records.
 Each catalog entry row displays the original catalog name, the detection method, cross-match confidence, and the full metadata payload rendered as a key–value list, allowing domain experts to inspect native catalog quantities without loss of information.
 
-The analytics dashboard (\texttt{CatalogAnalyticsPage}) is populated from the \texttt{/api/sources/analytics/} endpoint and presents four visualisation panels:
-\begin{enumerate}
-    \item \textbf{Catalog comparison} — bar chart of source counts per catalog.
-    \item \textbf{Detection trends} — time series of newly ingested sources by month.
-    \item \textbf{Significance histogram} — log-spaced bins over the range $[10^0, 10^4]$ (15 bins), with the 95th-percentile significance value annotated.
-    \item \textbf{Detectability breakdown} — stacked bar or pie chart showing the proportion of sources in each detectability tier (low, medium, high).
-\end{enumerate}
-
-All data-fetching in the main interface uses the custom React Query hooks provided by the shared infrastructure, so loading and error states are handled consistently across all views.
+All data-fetching in the main interface uses these custom React Query hooks, so loading and error states are handled consistently across all views.
 The implementation keeps presentation components free of business logic: filter construction, parameter serialisation, and page-reset side effects are localised to the hook layer, making the page components straightforward to test and extend with additional filter dimensions in future releases.
 
 \section{Skymap -- Krzysztof Wilk}
@@ -219,7 +300,7 @@ The implementation keeps presentation components free of business logic: filter 
 Krzysztof Wilk implemented both skymap views in the application: a 2D projected map rendered on an HTML \texttt{<canvas>} element using D3, and an interactive 3D celestial sphere built with React Three Fiber and Three.js.
 
 The 2D sky map component (\texttt{CatalogSkyMap}) supports four cartographic projections: Aitoff, Mollweide, equirectangular, and orthographic.
-The active projection is selected at runtime from a dropdown control and applied via the corresponding \texttt{d3-geo} projection function.
+The active projection is selected  at runtime from a dropdown control and applied via the corresponding \texttt{d3-geo} projection function.
 Sources can be displayed in either the equatorial coordinate system $(\alpha, \delta)$ or the Galactic system $(l, b)$.
 The conversion from equatorial to Galactic coordinates is implemented analytically using the standard transformation defined by the J2000 North Galactic Pole at $(\alpha_{\text{NGP}}, \delta_{\text{NGP}}) = (192.859\,48^{\circ},\; 27.128\,25^{\circ})$ and the ascending node offset $l_{\Omega} = 32.931\,92^{\circ}$:
 
@@ -246,7 +327,7 @@ To maintain interactive frame rates over the full source set ($\sim$\,7000 objec
 The sky is subdivided into $N_{\text{side}} = 2^{\text{order}}$ HEALPix pixels in the NESTED indexing scheme; the \texttt{ang2pix} transformation maps a source's angular position $(\alpha, \delta)$ to its pixel index using two branches — an equatorial branch for $|z| = |\sin\delta| \le 2/3$ and a polar branch for $|z| > 2/3$ — mirroring the original Górski et al. algorithm \citep{Gorski2005}.
 At coarser zoom levels, nearby sources are merged into cluster markers (\texttt{ClusterMarkers}) with a count badge; as the camera approaches a region the hierarchy is refined, revealing individual source points.
 
-\begin{figure}[h]
+\begin{figure}[h!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/placeholder_skymap.png}
     \caption{2D sky map in Galactic Aitoff projection (left) showing all ingested sources colour-coded by catalog, with significance-scaled point radii. The 3D celestial sphere view (right) shows hierarchical clustering at an intermediate zoom level.}
@@ -256,6 +337,7 @@ At coarser zoom levels, nearby sources are merged into cluster markers (\texttt{
 The two skymap views share the same underlying source data fetched via a dedicated API module that pages through the \texttt{/api/sources/} endpoint (up to $100 \times 200 = 20\,000$ items) and caches the result in the React Query store.
 Future work could replace the paged fetch with a dedicated bulk-export endpoint returning compressed GeoJSON or HEALPix-indexed tiles to reduce initial load time for large catalog releases.
 
+\clearpage
 \begin{thebibliography}{99}
 \bibitem[Abdollahi et al.(2020)]{2020ApJS..247...33A} Abdollahi, S., Acero, F., Ackermann, M., et al.\ 2020, ApJS, 247, 1, 33. doi:10.3847/1538-4365/ab6bcb
 \bibitem[Li \& Ma(1983)]{LiMa1983} Li, T.-P., \& Ma, Y.-Q.\ 1983, ApJ, 272, 317. doi:10.1086/161295

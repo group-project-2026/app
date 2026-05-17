@@ -40,6 +40,30 @@ export interface SourceHeadlineMetrics {
   multiCatalogShare: number;
 }
 
+export interface SourceMagicHeadlineMetrics {
+  samples: number;
+  sourcesWithMagic: number;
+  avgMagicSignificance: number;
+  detectableShare: number;
+}
+
+export interface SourceMagicComparisonRow {
+  catalog: CatalogName;
+  sampleCount: number;
+  sourcesWithMagic: number;
+  avgMagicSignificance: number;
+  detectableShare: number;
+  strongestMagicSignificance: number;
+  strongestSourceName: string | null;
+}
+
+export interface SourceMagicTopRow {
+  name: string;
+  catalog: CatalogName;
+  magicSignificance: number;
+  magicDetectable: boolean | null;
+}
+
 export interface SourceCatalogComparisonRow {
   catalog: CatalogName;
   sampleCount: number;
@@ -87,9 +111,12 @@ export interface SourceTopRow {
 export interface SourceAnalyticsData {
   sources: Source[];
   headlineMetrics: SourceHeadlineMetrics;
+  magicHeadlineMetrics: SourceMagicHeadlineMetrics;
   catalogComparison: SourceCatalogComparisonRow[];
+  magicComparison: SourceMagicComparisonRow[];
   scatterPoints: SourceScatterPoint[];
   topSources: SourceTopRow[];
+  magicTopSources: SourceMagicTopRow[];
   classMixRows: Array<Record<string, string | number>>;
   topClasses: string[];
   significanceHistogram?: {
@@ -239,6 +266,18 @@ function discoveryMethod(source: Source): string {
   return source.discovery_method?.trim() || "Unknown";
 }
 
+function sourceMagicSignificance(source: Source): number | null {
+  return source.magic_significance ?? null;
+}
+
+function sourceMagicDetectable(source: Source): boolean | null {
+  return source.magic_detectable ?? null;
+}
+
+function sourceHasMagic(source: Source): boolean {
+  return typeof source.magic_significance === "number";
+}
+
 function confidenceBandKey(confidence: number): string {
   if (confidence < 0.4) {
     return "veryLow";
@@ -277,6 +316,96 @@ function sourceScore(source: Source): number {
     significance * 5 + logBoost(flux) * 8 + confidence * 25 + catalogCount * 3,
     2
   );
+}
+
+function magicScore(source: Source): number {
+  return round(sourceMagicSignificance(source) ?? 0, 2);
+}
+
+function buildMagicComparison(sources: Source[]): SourceMagicComparisonRow[] {
+  return SOURCE_CATALOGS.map((catalog) => {
+    const catalogSources = sources.filter(
+      (source) => source.primary_catalog === catalog
+    );
+
+    if (catalogSources.length === 0) {
+      return null;
+    }
+
+    const magicSources = catalogSources.filter(sourceHasMagic);
+    const magicValues = magicSources
+      .map(sourceMagicSignificance)
+      .filter((value): value is number => typeof value === "number");
+    const detectableShare =
+      magicSources.length === 0
+        ? 0
+        : (magicSources.filter(
+            (source) => sourceMagicDetectable(source) === true
+          ).length /
+            magicSources.length) *
+          100;
+
+    const strongestMagic = magicSources.reduce<Source | null>(
+      (best, source) => {
+        if (!best) {
+          return source;
+        }
+
+        return magicScore(source) > magicScore(best) ? source : best;
+      },
+      null
+    );
+
+    return {
+      catalog,
+      sampleCount: catalogSources.length,
+      sourcesWithMagic: magicSources.length,
+      avgMagicSignificance: round(average(magicValues), 2),
+      detectableShare: round(detectableShare, 1),
+      strongestMagicSignificance: strongestMagic
+        ? magicScore(strongestMagic)
+        : 0,
+      strongestSourceName: strongestMagic?.unified_name ?? null
+    };
+  }).filter((value): value is SourceMagicComparisonRow => value !== null);
+}
+
+function buildMagicHeadlineMetrics(
+  sources: Source[]
+): SourceMagicHeadlineMetrics {
+  const magicSources = sources.filter(sourceHasMagic);
+  const magicValues = magicSources
+    .map(sourceMagicSignificance)
+    .filter((value): value is number => typeof value === "number");
+
+  return {
+    samples: sources.length,
+    sourcesWithMagic: magicSources.length,
+    avgMagicSignificance: round(average(magicValues), 2),
+    detectableShare: round(
+      magicSources.length === 0
+        ? 0
+        : (magicSources.filter(
+            (source) => sourceMagicDetectable(source) === true
+          ).length /
+            magicSources.length) *
+            100,
+      1
+    )
+  };
+}
+
+function buildMagicTopSources(sources: Source[]): SourceMagicTopRow[] {
+  return sources
+    .filter(sourceHasMagic)
+    .sort((left, right) => magicScore(right) - magicScore(left))
+    .slice(0, 10)
+    .map((source) => ({
+      name: source.unified_name,
+      catalog: source.primary_catalog,
+      magicSignificance: magicScore(source),
+      magicDetectable: sourceMagicDetectable(source)
+    }));
 }
 
 export async function fetchAllSources(): Promise<Source[]> {
@@ -565,8 +694,11 @@ export async function fetchSourceAnalytics(
   const catalogComparison = addScienceScore(
     buildCatalogComparison(filteredSources)
   );
+  const magicComparison = buildMagicComparison(filteredSources);
   const scatterPoints = buildScatterPoints(filteredSources);
   const topSources = buildTopSources(filteredSources);
+  const magicHeadlineMetrics = buildMagicHeadlineMetrics(filteredSources);
+  const magicTopSources = buildMagicTopSources(filteredSources);
   const { topClasses, rows: classMixRows } = buildClassMixRows(filteredSources);
 
   const headlineMetrics: SourceHeadlineMetrics = {
@@ -605,9 +737,12 @@ export async function fetchSourceAnalytics(
   return {
     sources: filteredSources,
     headlineMetrics,
+    magicHeadlineMetrics,
     catalogComparison,
+    magicComparison,
     scatterPoints,
     topSources,
+    magicTopSources,
     classMixRows,
     topClasses,
     significanceHistogram,
@@ -653,6 +788,8 @@ export interface SourceMapPoint {
   spectral_index: number | null;
   associated_name: string | null;
   discovery_method: string | null;
+  magic_significance: number | null;
+  magic_detectable: boolean | null;
 }
 
 export interface SourceAnalyticsMapFilters {
